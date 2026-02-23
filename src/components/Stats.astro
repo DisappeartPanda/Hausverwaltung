@@ -1,0 +1,58 @@
+---
+---
+
+<section class="stats">
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h3>2.500+</h3>
+                <p>Verwaltete Objekte</p>
+            </div>
+            <div class="stat-item">
+                <h3>15+</h3>
+                <p>Jahre Erfahrung</p>
+            </div>
+            <div class="stat-item">
+                <h3>24/7</h3>
+                <p>KI-Support</p>
+            </div>
+            <div class="stat-item">
+                <h3>98%</h3>
+                <p>Kundenzufriedenheit</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .stats {
+        background: var(--dark);
+        padding: 3rem 0;
+        border-top: 1px solid var(--dark-lighter);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2rem;
+        text-align: center;
+    }
+
+    .stat-item h3 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-item p {
+        color: var(--gray-400);
+        font-size: 0.9375rem;
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>

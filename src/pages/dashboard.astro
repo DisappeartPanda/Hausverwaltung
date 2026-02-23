@@ -1,0 +1,151 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Dashboard">
+  <h1 class="text-2xl font-bold mb-6">Übersicht</h1>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-lg shadow">
+      <p class="text-sm text-gray-600">Objekte</p>
+      <p class="text-3xl font-bold text-blue-600" id="stat-objekte">-</p>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow">
+      <p class="text-sm text-gray-600">Wohneinheiten</p>
+      <p class="text-3xl font-bold text-green-600" id="stat-einheiten">-</p>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow">
+      <p class="text-sm text-gray-600">Aktive Mieter</p>
+      <p class="text-3xl font-bold text-purple-600" id="stat-mieter">-</p>
+    </div>
+    
+    <div class="bg-white p-6 rounded-lg shadow">
+      <p class="text-sm text-gray-600">Offene Mängel</p>
+      <p class="text-3xl font-bold text-red-600" id="stat-maengel">-</p>
+    </div>
+  </div>
+
+  <!-- NEU: Instandhaltungs-Status -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-orange-50 border border-orange-200 p-6 rounded-lg">
+      <p class="text-sm text-orange-600 font-medium">🔧 Anstehende Wartungen</p>
+      <p class="text-3xl font-bold text-orange-700" id="stat-wartungen">-</p>
+      <p class="text-xs text-orange-600 mt-1">Nächste 30 Tage</p>
+    </div>
+    <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+      <p class="text-sm text-blue-600 font-medium">📋 Offene Nebenkosten</p>
+      <p class="text-3xl font-bold text-blue-700" id="stat-nebenkosten">-</p>
+      <p class="text-xs text-blue-600 mt-1">Abrechnungen ausstehend</p>
+    </div>
+    <div class="bg-green-50 border border-green-200 p-6 rounded-lg">
+      <p class="text-sm text-green-600 font-medium">💶 Rücklagen</p>
+      <p class="text-3xl font-bold text-green-700" id="stat-ruecklagen">-</p>
+      <p class="text-xs text-green-600 mt-1">Empfohlene Jahresrate</p>
+    </div>
+  </div>
+  
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Offene Mängel -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold mb-4">⚠️ Offene Mängel</h2>
+      <div id="maengel-liste" class="space-y-3">
+        <p class="text-gray-500">Laden...</p>
+      </div>
+    </div>
+    
+    <!-- NEU: Anstehende Wartungen -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-semibold">🔧 Anstehende Wartungen</h2>
+        <a href="/instandhaltung" class="text-sm text-blue-600 hover:text-blue-800">Alle anzeigen →</a>
+      </div>
+      <div id="wartungen-liste" class="space-y-3">
+        <p class="text-gray-500">Laden...</p>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  import { supabase } from '../lib/supabase';
+  
+  const loadDashboard = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    const { data: vermieter } = await supabase
+      .from('vermieter')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single();
+    
+    if (!vermieter) return;
+    
+    // Stats manuell zählen (ohne View)
+    const [
+      { count: objekteCount },
+      { count: einheitenCount },
+      { count: mieterCount },
+      { count: maengelCount }
+    ] = await Promise.all([
+      supabase.from('objekte').select('*', { count: 'exact', head: true }).eq('vermieter_id', vermieter.id),
+      supabase.from('wohneinheiten').select('*, objekte!inner(vermieter_id)', { count: 'exact', head: true }).eq('objekte.vermieter_id', vermieter.id),
+      supabase.from('mietvertraege').select('*, wohneinheiten!inner(objekte!inner(vermieter_id))', { count: 'exact', head: true }).eq('wohneinheiten.objekte.vermieter_id', vermieter.id).eq('status', 'aktiv'),
+      supabase.from('maengel').select('*, wohneinheiten!inner(objekte!inner(vermieter_id))', { count: 'exact', head: true }).eq('wohneinheiten.objekte.vermieter_id', vermieter.id).not('status', 'in', '(behoben,abgelehnt)')
+    ]);
+    
+    document.getElementById('stat-objekte')!.textContent = String(objekteCount || 0);
+    document.getElementById('stat-einheiten')!.textContent = String(einheitenCount || 0);
+    document.getElementById('stat-mieter')!.textContent = String(mieterCount || 0);
+    document.getElementById('stat-maengel')!.textContent = String(maengelCount || 0);
+    
+    // NEU: Wartungen laden (simuliert - später aus DB)
+    const wartungenDemo = [
+      { titel: 'Heizungswartung', objekt: 'Musterstraße 1', faellig: '2025-03-15', dringend: true },
+      { titel: 'Dachrinnenreinigung', objekt: 'Beispielweg 5', faellig: '2025-04-01', dringend: false },
+      { titel: 'Rauchmelder prüfen', objekt: 'Musterstraße 1', faellig: '2025-04-10', dringend: false }
+    ];
+    
+    document.getElementById('stat-wartungen')!.textContent = String(wartungenDemo.length);
+    
+    const wartungenContainer = document.getElementById('wartungen-liste')!;
+    wartungenContainer.innerHTML = wartungenDemo.map(w => `
+      <div class="border-l-4 ${w.dringend ? 'border-red-500 bg-red-50' : 'border-blue-500 bg-blue-50'} pl-3 py-2 rounded">
+        <p class="font-medium text-sm">${w.titel}</p>
+        <p class="text-xs text-gray-600">${w.objekt}</p>
+        <p class="text-xs text-gray-500">Fällig: ${new Date(w.faellig).toLocaleDateString('de-DE')}</p>
+      </div>
+    `).join('');
+    
+    // Offene Mängel laden (ohne View)
+    const { data: maengel } = await supabase
+      .from('maengel')
+      .select(`
+        *,
+        wohneinheiten (
+          bezeichnung,
+          objekte (bezeichnung)
+        )
+      `)
+      .not('status', 'in', '(behoben,abgelehnt)')
+      .order('dringend', { ascending: false })
+      .limit(5);
+    
+    const maengelContainer = document.getElementById('maengel-liste')!;
+    if (maengel && maengel.length > 0) {
+      maengelContainer.innerHTML = maengel.map(m => `
+        <div class="border-l-4 ${m.dringend ? 'border-red-500 bg-red-50' : 'border-yellow-500 bg-yellow-50'} pl-3 py-2 rounded">
+          <p class="font-medium text-sm">${m.titel}</p>
+          <p class="text-xs text-gray-600">${m.wohneinheiten.objekte.bezeichnung} - ${m.wohneinheiten.bezeichnung}</p>
+          <p class="text-xs text-gray-500">${new Date(m.gemeldet_am).toLocaleDateString('de-DE')}</p>
+        </div>
+      `).join('');
+    } else {
+      maengelContainer.innerHTML = '<p class="text-gray-500">Keine offenen Mängel 🎉</p>';
+    }
+  };
+  
+  loadDashboard();
+</script>

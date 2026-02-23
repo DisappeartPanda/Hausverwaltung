@@ -1,0 +1,143 @@
+<nav class="nav">
+    <div class="container nav-container">
+        <a href="#" class="logo">
+            <div class="logo-icon">🏢</div>
+            <div class="logo-text">
+                <span class="logo-title">ImmobilienPro</span>
+                <span class="logo-subtitle">Hausverwaltung</span>
+            </div>
+        </a>
+
+        <ul class="nav-links">
+            <li><a href="#ai">KI-Assistent</a></li>
+            <li><a href="#services">Verwaltung</a></li>
+            <li><a href="#team">Team</a></li>
+            <li><a href="#contact">Kontakt</a></li>
+        </ul>
+
+        <div class="nav-actions">
+            <a href="login" class="nav-login">
+                <span>Anmelden</span>
+            </a>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </div>
+</nav>
+
+<style>
+    .nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--gray-200);
+        z-index: 1000;
+        padding: 1rem 0;
+    }
+
+    .nav-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-decoration: none;
+    }
+
+    .logo-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--dark);
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+        font-size: 1.25rem;
+    }
+
+    .logo-text {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .logo-title {
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: var(--dark);
+        line-height: 1.2;
+    }
+
+    .logo-subtitle {
+        font-size: 0.75rem;
+        color: var(--gray-600);
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 2.5rem;
+        list-style: none;
+    }
+
+    .nav-links a {
+        text-decoration: none;
+        color: var(--gray-600);
+        font-weight: 500;
+        transition: color 0.3s;
+    }
+
+    .nav-links a:hover {
+        color: var(--dark);
+    }
+
+    .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .nav-login {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--primary);
+        color: var(--white);
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        border: 2px solid var(--primary);
+    }
+
+    .nav-login:hover {
+        background: transparent;
+        color: var(--primary);
+    }
+
+    .mobile-menu-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: var(--dark);
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+        .nav-links {
+            display: none;
+        }
+
+        .mobile-menu-btn {
+            display: block;
+        }
+    }
+</style>

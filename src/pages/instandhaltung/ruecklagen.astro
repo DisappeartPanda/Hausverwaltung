@@ -1,0 +1,167 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+
+const { searchParams } = Astro.url;
+const objektId = searchParams.get('objekt');
+
+// Demo-Daten
+const ruecklagenDaten = {
+  objekt: { bezeichnung: 'Musterstraße 1', baujahr: 1995, wohnflaeche: 350 },
+  aktuellerStand: 12500.00,
+  jahreseinzahlung: 3150.00, // 9€ * 350m²
+  monatlicheEinzahlung: 262.50,
+  letzteAufloesung: null,
+  historie: [
+    { jahr: 2024, eingezahlt: 3150.00, ausgegeben: 2800.00, stand: 12500.00 },
+    { jahr: 2023, eingezahlt: 3150.00, ausgegeben: 4500.00, stand: 12150.00 },
+    { jahr: 2022, eingezahlt: 3150.00, ausgegeben: 1200.00, stand: 13500.00 }
+  ]
+};
+
+// Langfristige Planung
+const langfristigeKosten = [
+  { jahr: 2025, position: 'Dachrinnen erneuern', kosten: 3500, wichtigkeit: 'hoch' },
+  { jahr: 2027, position: 'Fassade streichen', kosten: 8000, wichtigkeit: 'mittel' },
+  { jahr: 2030, position: 'Fenster tauschen (Teil)', kosten: 15000, wichtigkeit: 'hoch' },
+  { jahr: 2035, position: 'Außenputz erneuern', kosten: 15000, wichtigkeit: 'mittel' },
+  { jahr: 2040, position: 'Heizungsanlage tauschen', kosten: 15000, wichtigkeit: 'hoch' },
+  { jahr: 2070, position: 'Dacheindeckung erneuern', kosten: 20000, wichtigkeit: 'hoch' }
+];
+
+const gesamtLangfristig = langfristigeKosten.reduce((sum, item) => sum + item.kosten, 0);
+---
+
+<DashboardLayout title="Instandhaltungsrücklagen">
+  <div class="mb-6">
+    <a href={objektId ? `/objekte/${objektId}` : "/instandhaltung"} class="text-gray-600 hover:text-gray-800 text-sm">
+      ← Zurück
+    </a>
+  </div>
+  
+  <h1 class="text-2xl font-bold mb-2">💰 Instandhaltungsrücklagen</h1>
+  <p class="text-gray-600 mb-6">{ruecklagenDaten.objekt.bezeichnung} (Baujahr {ruecklagenDaten.objekt.baujahr})</p>
+
+  <!-- Übersichtskarten -->
+  <div class="grid grid-cols-4 gap-4 mb-8">
+    <div class="bg-green-50 border border-green-200 p-6 rounded-lg">
+      <p class="text-sm text-green-600 font-medium">Aktueller Stand</p>
+      <p class="text-3xl font-bold text-green-900">{ruecklagenDaten.aktuellerStand.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+    </div>
+    <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+      <p class="text-sm text-blue-600 font-medium">Jährliche Einzahlung</p>
+      <p class="text-3xl font-bold text-blue-900">{ruecklagenDaten.jahreseinzahlung.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+      <p class="text-xs text-blue-600 mt-1">({ruecklagenDaten.objekt.wohnflaeche}m² × 9,00€)</p>
+    </div>
+    <div class="bg-purple-50 border border-purple-200 p-6 rounded-lg">
+      <p class="text-sm text-purple-600 font-medium">Monatlich</p>
+      <p class="text-3xl font-bold text-purple-900">{ruecklagenDaten.monatlicheEinzahlung.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+    </div>
+    <div class="bg-orange-50 border border-orange-200 p-6 rounded-lg">
+      <p class="text-sm text-orange-600 font-medium">Langfristiger Bedarf</p>
+      <p class="text-3xl font-bold text-orange-900">{gesamtLangfristig.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+      <p class="text-xs text-orange-600 mt-1">Nächste 45 Jahre</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Historie -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold mb-4">📈 Rücklagenentwicklung</h2>
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-600">
+          <tr>
+            <th class="px-4 py-3 text-left">Jahr</th>
+            <th class="px-4 py-3 text-right">Eingezahlt</th>
+            <th class="px-4 py-3 text-right">Ausgegeben</th>
+            <th class="px-4 py-3 text-right">Jahresendstand</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          {ruecklagenDaten.historie.map((eintrag) => (
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 font-medium">{eintrag.jahr}</td>
+              <td class="px-4 py-3 text-right text-green-600">+{eintrag.eingezahlt.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</td>
+              <td class="px-4 py-3 text-right text-red-600">-{eintrag.ausgegeben.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</td>
+              <td class="px-4 py-3 text-right font-bold">{eintrag.stand.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      
+      <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h3 class="font-medium mb-2">➕ Neue Einzahlung erfassen</h3>
+        <div class="flex gap-2">
+          <input type="number" placeholder="Betrag (€)" class="flex-1 px-3 py-2 border rounded-md" />
+          <input type="date" class="px-3 py-2 border rounded-md" />
+          <button class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Langfristige Planung -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold mb-4">📅 Langfristige Instandhaltungsplanung</h2>
+      <div class="space-y-3 max-h-96 overflow-y-auto">
+        {langfristigeKosten.map((position) => {
+          const jahreBis = position.jahr - new Date().getFullYear();
+          const ruecklagenAnteil = ruecklagenDaten.aktuellerStand * (position.kosten / gesamtLangfristig);
+          const deckungsgrad = Math.min(100, (ruecklagenAnteil / position.kosten) * 100);
+          
+          return (
+            <div class="p-4 border rounded-lg hover:bg-gray-50">
+              <div class="flex justify-between items-start mb-2">
+                <div>
+                  <p class="font-medium">{position.position}</p>
+                  <p class="text-sm text-gray-500">Fällig {position.jahr} (in {jahreBis} Jahren)</p>
+                </div>
+                <span class={`px-2 py-1 rounded text-xs ${
+                  position.wichtigkeit === 'hoch' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {position.wichtigkeit}
+                </span>
+              </div>
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-lg font-bold">{position.kosten.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</span>
+                <span class={`text-sm ${deckungsgrad >= 100 ? 'text-green-600' : deckungsgrad >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {deckungsgrad.toFixed(0)}% gedeckt
+                </span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class={`h-2 rounded-full ${
+                  deckungsgrad >= 100 ? 'bg-green-500' : deckungsgrad >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                }`} style={`width: ${deckungsgrad}%`}></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      
+      <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+        <h3 class="font-medium text-blue-900 mb-2">💡 Empfehlung</h3>
+        <p class="text-sm text-blue-800">
+          Bei aktueller Sparrate von {ruecklagenDaten.jahreseinzahlung.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}/Jahr 
+          sind alle geplanten Maßnahmen bis 2040 finanzierbar. Erhöhung auf 11,50€/m² empfohlen für größere Reserve.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gesamtübersicht -->
+  <div class="mt-6 bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold mb-4">📊 Gesamtbilanz</h2>
+    <div class="grid grid-cols-3 gap-6">
+      <div class="text-center p-4 bg-green-50 rounded-lg">
+        <p class="text-3xl font-bold text-green-900">{ruecklagenDaten.historie.reduce((s, e) => s + e.eingezahlt, 0).toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+        <p class="text-sm text-green-700 mt-1">Gesamt eingezahlt (3 Jahre)</p>
+      </div>
+      <div class="text-center p-4 bg-red-50 rounded-lg">
+        <p class="text-3xl font-bold text-red-900">{ruecklagenDaten.historie.reduce((s, e) => s + e.ausgegeben, 0).toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+        <p class="text-sm text-red-700 mt-1">Gesamt ausgegeben</p>
+      </div>
+      <div class="text-center p-4 bg-blue-50 rounded-lg">
+        <p class="text-3xl font-bold text-blue-900">{((ruecklagenDaten.historie.reduce((s, e) => s + e.ausgegeben, 0) / ruecklagenDaten.historie.reduce((s, e) => s + e.eingezahlt, 0)) * 100).toFixed(1)}%</p>
+        <p class="text-sm text-blue-700 mt-1">Auslastung</p>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>

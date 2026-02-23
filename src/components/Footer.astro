@@ -1,0 +1,236 @@
+---
+---
+
+<footer class="footer" id="contact">
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <a href="#" class="logo">
+                    <div class="logo-icon">🏢</div>
+                    <div class="logo-text">
+                        <span class="logo-title">ImmobilienPro</span>
+                        <span class="logo-subtitle">Hausverwaltung</span>
+                    </div>
+                </a>
+                <p>Professionelle Hausverwaltung mit KI-Unterstützung. Für Eigentümer und Mieter – rund um die Uhr erreichbar.</p>
+                <div class="footer-badge">
+                    <span>💬</span>
+                    <span>KI-Assistent verfügbar</span>
+                </div>
+                <div class="footer-social">
+                    <a href="#">f</a>
+                    <a href="#">📷</a>
+                    <a href="#">💼</a>
+                    <a href="#">▶️</a>
+                </div>
+            </div>
+
+            <div class="footer-column">
+                <h4>Verwaltung</h4>
+                <ul>
+                    <li><a href="#">Mietverwaltung</a></li>
+                    <li><a href="#">Nebenkostenabrechnung</a></li>
+                    <li><a href="#">Instandhaltung</a></li>
+                    <li><a href="#">Wirtschaftsplanung</a></li>
+                    <li><a href="#">Rechtsschutz</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-column">
+                <h4>Service</h4>
+                <ul>
+                    <li><a href="#">KI-Assistent</a></li>
+                    <li><a href="#">Mieterportal</a></li>
+                    <li><a href="#">Eigentümerportal</a></li>
+                    <li><a href="#">Dokumente</a></li>
+                    <li><a href="#">Häufige Fragen</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-column">
+                <h4>Unternehmen</h4>
+                <ul>
+                    <li><a href="#">Über uns</a></li>
+                    <li><a href="#">Team</a></li>
+                    <li><a href="#">Karriere</a></li>
+                    <li><a href="#">News</a></li>
+                    <li><a href="#">Kontakt</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-column">
+                <h4>Rechtliches</h4>
+                <ul>
+                    <li><a href="#">Impressum</a></li>
+                    <li><a href="#">Datenschutz</a></li>
+                    <li><a href="#">AGB</a></li>
+                    <li><a href="#">Widerrufsrecht</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© 2026 ImmobilienPro Hausverwaltung. Alle Rechte vorbehalten.</p>
+            <a href="#" class="footer-scroll-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'}); return false;">
+                <span>Nach oben</span>
+                <span>↑</span>
+            </a>
+        </div>
+    </div>
+</footer>
+
+<style>
+    .footer {
+        background: var(--primary);
+        color: var(--white);
+        padding: 4rem 0 2rem;
+    }
+
+    .footer-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+        gap: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .footer-brand .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-decoration: none;
+        margin-bottom: 1rem;
+    }
+
+    .footer-brand .logo-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--primary);
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--dark);
+        font-size: 1.25rem;
+    }
+
+    .footer-brand .logo-title {
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: var(--white);
+        line-height: 1.2;
+    }
+
+    .footer-brand .logo-subtitle {
+        font-size: 0.75rem;
+        color: var(--gray-400);
+    }
+
+    .footer-brand p {
+        color: var(--gray-400);
+        margin: 1rem 0 1.5rem;
+        line-height: 1.6;
+    }
+
+    .footer-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--dark-light);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .footer-social {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .footer-social a {
+        width: 40px;
+        height: 40px;
+        background: var(--dark-light);
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--gray-400);
+        text-decoration: none;
+        transition: all 0.3s;
+    }
+
+    .footer-social a:hover {
+        background: var(--primary);
+        color: var(--white);
+    }
+
+    .footer-column h4 {
+        font-weight: 600;
+        margin-bottom: 1.25rem;
+        color: var(--white);
+    }
+
+    .footer-column ul {
+        list-style: none;
+    }
+
+    .footer-column li {
+        margin-bottom: 0.75rem;
+    }
+
+    .footer-column a {
+        color: var(--gray-400);
+        text-decoration: none;
+        transition: color 0.3s;
+        font-size: 0.9375rem;
+    }
+
+    .footer-column a:hover {
+        color: var(--primary);
+    }
+
+    .footer-bottom {
+        border-top: 1px solid var(--dark-lighter);
+        padding-top: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--gray-400);
+        font-size: 0.875rem;
+    }
+
+    .footer-scroll-top {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--gray-400);
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+
+    .footer-scroll-top:hover {
+        color: var(--primary);
+    }
+
+    @media (max-width: 1024px) {
+        .footer-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .footer-grid {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .footer-bottom {
+            flex-direction: column;
+            gap: 1rem;
+            text-align: center;
+        }
+    }
+</style>

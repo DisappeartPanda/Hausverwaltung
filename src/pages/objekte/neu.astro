@@ -1,0 +1,140 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Neues Objekt">
+  <div class="mb-6">
+    <a href="/objekte" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zu Objekten</a>
+  </div>
+  
+  <h1 class="text-2xl font-bold mb-6">Neues Objekt anlegen</h1>
+  
+  <form id="objekt-form" class="max-w-2xl bg-white rounded-lg shadow p-6 space-y-6">
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Bezeichnung *</label>
+      <input name="bezeichnung" type="text" required placeholder="z.B. Wohnanlage Hauptstraße"
+        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Straße *</label>
+        <input name="strasse" type="text" required
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Hausnummer</label>
+        <input name="hausnummer" type="text"
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">PLZ *</label>
+        <input name="plz" type="text" required
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Stadt *</label>
+        <input name="stadt" type="text" required
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+      </div>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Objekttyp</label>
+        <select name="objekt_typ" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+          <option value="wohnhaus">Wohnhaus</option>
+          <option value="mehrfamilienhaus">Mehrfamilienhaus</option>
+          <option value="einfamilienhaus">Einfamilienhaus</option>
+          <option value="gewerbe">Gewerbe</option>
+          <option value="mischobjekt">Mischobjekt</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Baujahr</label>
+        <input name="baujahr" type="number" min="1800" max="2099" placeholder="z.B. 1990"
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+      </div>
+    </div>
+    
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Gesamtwohnfläche (m²)</label>
+      <input name="wohnflaeche_gesamt" type="number" step="0.01" placeholder="0.00"
+        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+    </div>
+    
+    <div>
+      <label class="block text-sm font-medium text-gray-700">Notizen</label>
+      <textarea name="notizen" rows="3"
+        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+    </div>
+    
+    <div class="flex gap-4 pt-4">
+      <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+        Speichern
+      </button>
+      <a href="/objekte" class="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+        Abbrechen
+      </a>
+    </div>
+    
+    <div id="error-message" class="hidden p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm"></div>
+  </form>
+</DashboardLayout>
+
+<script>
+  import { supabase } from '../../lib/supabase';
+  
+  const form = document.getElementById('objekt-form');
+  const errorMsg = document.getElementById('error-message');
+  
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorMsg!.classList.add('hidden');
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.href = '/login';
+      return;
+    }
+    
+    const { data: vermieter } = await supabase
+      .from('vermieter')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single();
+    
+    if (!vermieter) {
+      errorMsg!.textContent = 'Fehler: Vermieter nicht gefunden';
+      errorMsg!.classList.remove('hidden');
+      return;
+    }
+    
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    const { error } = await supabase
+      .from('objekte')
+      .insert({
+        vermieter_id: vermieter.id,
+        bezeichnung: formData.get('bezeichnung'),
+        strasse: formData.get('strasse'),
+        hausnummer: formData.get('hausnummer') || null,
+        plz: formData.get('plz'),
+        stadt: formData.get('stadt'),
+        objekt_typ: formData.get('objekt_typ'),
+        baujahr: formData.get('baujahr') ? parseInt(formData.get('baujahr') as string) : null,
+        wohnflaeche_gesamt: formData.get('wohnflaeche_gesamt') ? parseFloat(formData.get('wohnflaeche_gesamt') as string) : null,
+        notizen: formData.get('notizen') || null,
+      });
+    
+    if (error) {
+      errorMsg!.textContent = 'Fehler: ' + error.message;
+      errorMsg!.classList.remove('hidden');
+    } else {
+      window.location.href = '/objekte';
+    }
+  });
+</script>

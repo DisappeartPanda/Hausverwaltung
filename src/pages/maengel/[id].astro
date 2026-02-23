@@ -1,0 +1,198 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+
+const { id } = Astro.params;
+
+// Demo-Daten
+const mangel = {
+  id: id,
+  titel: 'Wasserhahn tropft im Bad',
+  beschreibung: 'Der Wasserhahn im Badezimmer der Wohnung tropft ständig. Bereits mehrfach angezogen, hilft nicht.',
+  status: 'offen',
+  dringend: true,
+  kategorie: 'sanitaer',
+  gemeldet_am: '2025-02-15',
+  behoben_am: null,
+  kosten: null,
+  mieter: { name: 'Max Mustermann', telefon: '0176-12345678' },
+  wohneinheit: { bezeichnung: 'Wohnung 1. OG links', objekt: 'Musterstraße 1' },
+  objekt_id: '1',
+  fotos: ['mangel_1.jpg', 'mangel_2.jpg'],
+  interne_notizen: 'Ersatzteil bestellen: Keramik-Kartusche XY-123'
+};
+
+const statusLabels: Record<string, { text: string; class: string; next?: string }> = {
+  offen: { text: '🔴 Offen', class: 'bg-red-100 text-red-800', next: 'in_bearbeitung' },
+  in_bearbeitung: { text: '🟡 In Bearbeitung', class: 'bg-yellow-100 text-yellow-800', next: 'behoben' },
+  behoben: { text: '✅ Behoben', class: 'bg-green-100 text-green-800' },
+  abgelehnt: { text: '❌ Abgelehnt', class: 'bg-gray-100 text-gray-800' }
+};
+---
+
+<DashboardLayout title={`Mangel: ${mangel.titel}`}>
+  <div class="mb-6">
+    <a href="/maengel" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zur Übersicht</a>
+  </div>
+  
+  <!-- Header -->
+  <div class={`rounded-lg shadow p-6 mb-6 ${mangel.dringend ? 'bg-red-50 border-2 border-red-200' : 'bg-white'}`}>
+    <div class="flex justify-between items-start">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <h1 class="text-2xl font-bold text-gray-900">{mangel.titel}</h1>
+          {mangel.dringend && <span class="px-3 py-1 bg-red-600 text-white rounded-full text-sm font-bold">DRINGEND</span>}
+        </div>
+        <p class="text-gray-600">Gemeldet am {new Date(mangel.gemeldet_am).toLocaleDateString('de-DE')}</p>
+      </div>
+      <span class={`px-4 py-2 rounded-full text-sm font-medium ${statusLabels[mangel.status].class}`}>
+        {statusLabels[mangel.status].text}
+      </span>
+    </div>
+    
+    <div class="mt-4 pt-4 border-t border-gray-200">
+      <div class="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <span class="text-gray-500">Objekt:</span>
+          <a href={`/objekte/${mangel.objekt_id}`} class="ml-2 font-medium hover:text-blue-600">{mangel.wohneinheit.objekt}</a>
+        </div>
+        <div>
+          <span class="text-gray-500">Wohneinheit:</span>
+          <span class="ml-2 font-medium">{mangel.wohneinheit.bezeichnung}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Details -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Beschreibung -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">📝 Beschreibung</h2>
+        <p class="text-gray-700 whitespace-pre-line">{mangel.beschreibung}</p>
+      </div>
+
+      <!-- Fotos -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">📸 Fotos</h2>
+        {mangel.fotos.length > 0 ? (
+          <div class="grid grid-cols-3 gap-4">
+            {mangel.fotos.map((foto, index) => (
+              <div class="aspect-square bg-gray-100 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-200">
+                <span class="text-4xl">🖼️</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="text-gray-500">Keine Fotos vorhanden</p>
+        )}
+      </div>
+
+      <!-- Interne Notizen -->
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4 text-yellow-900">🔒 Interne Notizen</h2>
+        <p class="text-yellow-800">{mangel.interne_notizen || 'Keine Notizen'}</p>
+        <div class="mt-4">
+          <textarea class="w-full px-3 py-2 border rounded-md" rows="2" placeholder="Notiz hinzufügen..."></textarea>
+          <button class="mt-2 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Mieter -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">👤 Mieter</h2>
+        <div class="space-y-3">
+          <div>
+            <p class="text-sm text-gray-500">Name</p>
+            <p class="font-medium">{mangel.mieter.name}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Telefon</p>
+            <a href={`tel:${mangel.mieter.telefon}`} class="font-medium text-blue-600 hover:text-blue-800">{mangel.mieter.telefon}</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status-Änderung -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">⚡ Status ändern</h2>
+        <div class="space-y-2">
+          {mangel.status === 'offen' && (
+            <button onclick="statusAendern('in_bearbeitung')" class="w-full px-4 py-2 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 text-sm font-medium">
+              🛠️ In Bearbeitung setzen
+            </button>
+          )}
+          {mangel.status === 'in_bearbeitung' && (
+            <button onclick="statusAendern('behoben')" class="w-full px-4 py-2 bg-green-100 text-green-800 rounded hover:bg-green-200 text-sm font-medium">
+              ✅ Als behoben markieren
+            </button>
+          )}
+          {mangel.status !== 'abgelehnt' && mangel.status !== 'behoben' && (
+            <button onclick="statusAendern('abgelehnt')" class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
+              ❌ Ablehnen
+            </button>
+          )}
+        </div>
+      </div>
+
+      <!-- Kosten (nur bei behoben) -->
+      {mangel.status === 'behoben' && (
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold mb-4">💰 Kosten</h2>
+          <div class="space-y-3">
+            <div>
+              <p class="text-sm text-gray-500">Gesamtkosten</p>
+              <p class="text-2xl font-bold">{mangel.kosten?.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'}) || '-'}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Behoben am</p>
+              <p class="font-medium">{mangel.behoben_am ? new Date(mangel.behoben_am).toLocaleDateString('de-DE') : '-'}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <!-- Aktionen -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">Aktionen</h2>
+        <div class="space-y-2">
+          <a href={`/maengel/${id}/bearbeiten`} class="block w-full px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm text-center">
+            ✏️ Bearbeiten
+          </a>
+          <button onclick="auftragErstellen()" class="w-full px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm">
+            📋 Handwerker-Auftrag erstellen
+          </button>
+          <button onclick="mieterKontaktieren()" class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
+            📧 Mieter kontaktieren
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  function statusAendern(neuerStatus: string) {
+    const statusText = {
+      'in_bearbeitung': 'in Bearbeitung',
+      'behoben': 'behoben',
+      'abgelehnt': 'abgelehnt'
+    }[neuerStatus];
+    
+    if (confirm(`Mangel als "${statusText}" markieren?`)) {
+      alert(`Status geändert zu: ${statusText}`);
+      window.location.reload();
+    }
+  }
+  
+  function auftragErstellen() {
+    window.location.href = `/instandhaltung/neu?mangel=${id}`;
+  }
+  
+  function mieterKontaktieren() {
+    alert('E-Mail-Dialog würde geöffnet werden');
+  }
+</script>

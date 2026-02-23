@@ -1,0 +1,185 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+
+const { id } = Astro.params;
+---
+
+<DashboardLayout title="Mieter Details">
+  <div class="mb-6">
+    <a href="/mieter" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zu Mieter</a>
+  </div>
+  
+  <div id="loading" class="text-center py-8">Laden...</div>
+  
+  <div id="mieter-content" class="hidden space-y-6">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h1 class="text-2xl font-bold text-gray-900" id="mieter-name">-</h1>
+      <p class="text-gray-600 mt-1" id="mieter-kontakt">-</p>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Persönliche Daten -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">Persönliche Daten</h2>
+        <dl class="space-y-3">
+          <div class="flex justify-between">
+            <dt class="text-gray-600">Geburtsdatum:</dt>
+            <dd class="font-medium" id="geburtsdatum">-</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-600">Geburtsort:</dt>
+            <dd class="font-medium" id="geburtsort">-</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-600">Staatsangehörigkeit:</dt>
+            <dd class="font-medium" id="staatsangehoerigkeit">-</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-600">Personalausweis:</dt>
+            <dd class="font-medium" id="ausweis">-</dd>
+          </div>
+        </dl>
+        
+        <h3 class="font-semibold mt-6 mb-3">Aktuelle Anschrift</h3>
+        <p id="aktuelle-adresse" class="text-gray-700">-</p>
+      </div>
+      
+      <!-- Kontakt & Bank -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">Kontakt</h2>
+        <dl class="space-y-3">
+          <div class="flex justify-between">
+            <dt class="text-gray-600">E-Mail:</dt>
+            <dd class="font-medium" id="email">-</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-600">Telefon:</dt>
+            <dd class="font-medium" id="telefon">-</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-gray-600">Mobil:</dt>
+            <dd class="font-medium" id="mobil">-</dd>
+          </div>
+        </dl>
+        
+        <h3 class="font-semibold mt-6 mb-3">Bankverbindung</h3>
+        <p id="bankverbindung" class="text-gray-700">-</p>
+        
+        <h3 class="font-semibold mt-6 mb-3">Notfallkontakt</h3>
+        <p id="notfallkontakt" class="text-gray-700">-</p>
+      </div>
+    </div>
+    
+    <!-- Verträge -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold mb-4">Mietverträge</h2>
+      <div id="vertraege-liste">
+        <p class="text-gray-500">Laden...</p>
+      </div>
+    </div>
+    
+    <!-- Aktionen -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-lg font-semibold mb-4">Aktionen</h2>
+      <div class="flex gap-3">
+        <a href={`/mieter/${id}/bearbeiten`} class="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
+          Bearbeiten
+        </a>
+        <a href={`/mietvertraege/neu?mieter=${id}`} class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
+          Neuen Vertrag erstellen
+        </a>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  import { supabase } from '../../lib/supabase';
+  
+  const mieterId = '${id}';
+  
+  const loadMieter = async () => {
+    const { data: mieter, error } = await supabase
+      .from('mieter')
+      .select('*')
+      .eq('id', mieterId)
+      .single();
+    
+    if (error || !mieter) {
+      window.location.href = '/mieter';
+      return;
+    }
+    
+    document.getElementById('loading')!.classList.add('hidden');
+    document.getElementById('mieter-content')!.classList.remove('hidden');
+    
+    document.getElementById('mieter-name')!.textContent = `${mieter.anrede || ''} ${mieter.vorname} ${mieter.nachname}`.trim();
+    document.getElementById('mieter-kontakt')!.textContent = [mieter.email, mieter.telefon].filter(Boolean).join(' | ') || '-';
+    
+    document.getElementById('geburtsdatum')!.textContent = mieter.geburtsdatum 
+      ? new Date(mieter.geburtsdatum).toLocaleDateString('de-DE') 
+      : '-';
+    document.getElementById('geburtsort')!.textContent = mieter.geburtsort || '-';
+    document.getElementById('staatsangehoerigkeit')!.textContent = mieter.staatsangehoerigkeit || '-';
+    document.getElementById('ausweis')!.textContent = mieter.personalausweis_nummer || '-';
+    
+    document.getElementById('aktuelle-adresse')!.textContent = mieter.aktuelle_strasse
+      ? `${mieter.aktuelle_strasse}, ${mieter.aktuelle_plz} ${mieter.aktuelle_stadt}`
+      : 'Keine Adresse hinterlegt';
+    
+    document.getElementById('email')!.textContent = mieter.email || '-';
+    document.getElementById('telefon')!.textContent = mieter.telefon || '-';
+    document.getElementById('mobil')!.textContent = mieter.telefon_mobil || '-';
+    
+    document.getElementById('bankverbindung')!.textContent = mieter.iban
+      ? `IBAN: ${mieter.iban}${mieter.bic ? ' | BIC: ' + mieter.bic : ''}`
+      : 'Keine Bankverbindung hinterlegt';
+    
+    document.getElementById('notfallkontakt')!.textContent = mieter.notfall_name
+      ? `${mieter.notfall_name} | ${mieter.notfall_telefon}`
+      : 'Kein Notfallkontakt hinterlegt';
+    
+    // Verträge laden
+    const { data: vertraege } = await supabase
+      .from('mietvertraege')
+      .select(`
+        *,
+        wohneinheiten (
+          bezeichnung,
+          objekte (bezeichnung)
+        )
+      `)
+      .eq('mieter_id', mieterId)
+      .order('mietbeginn', { ascending: false });
+    
+    const liste = document.getElementById('vertraege-liste')!;
+    if (!vertraege || vertraege.length === 0) {
+      liste.innerHTML = '<p class="text-gray-500">Keine Verträge vorhanden.</p>';
+      return;
+    }
+    
+    const statusColors = {
+      aktiv: 'bg-green-100 text-green-800',
+      gekuendigt: 'bg-yellow-100 text-yellow-800',
+      beendet: 'bg-gray-100 text-gray-800',
+      vorzeitig_beendet: 'bg-red-100 text-red-800'
+    };
+    
+    liste.innerHTML = vertraege.map(v => `
+      <div class="flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50 mb-2">
+        <div>
+          <p class="font-medium text-gray-900">${v.wohneinheiten.objekte.bezeichnung} - ${v.wohneinheiten.bezeichnung}</p>
+          <p class="text-sm text-gray-600">${new Date(v.mietbeginn).toLocaleDateString('de-DE')} - ${v.mietende ? new Date(v.mietende).toLocaleDateString('de-DE') : (v.unbefristet ? 'unbefristet' : '-')}</p>
+        </div>
+        <div class="text-right">
+          <p class="font-bold">${v.gesamtmiete.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+          <span class="px-2 py-1 rounded text-xs ${statusColors[v.status as keyof typeof statusColors]}">${v.status}</span>
+          <a href="/mietvertraege/${v.id}" class="ml-2 text-blue-600 hover:text-blue-800 text-sm">Details →</a>
+        </div>
+      </div>
+    `).join('');
+  };
+  
+  loadMieter();
+</script>

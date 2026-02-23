@@ -1,0 +1,142 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { supabase } from '../../lib/supabase';
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) return Astro.redirect('/login');
+
+// Objekte laden
+const { data: objekte } = await supabase
+  .from('objekte')
+  .select('id, bezeichnung, adresse')
+  .eq('vermieter_id', session.user.id);
+
+const kategorien = [
+  'Dach/Fassade', 'Heizung/Sanitär', 'Fenster/Türen', 
+  'Elektro/Sicherheit', 'Außenanlagen', 'Lüftung/Klima', 'Sonstiges'
+];
+
+const errors = Astro.url.searchParams.get('errors')?.split(',') || [];
+---
+
+<DashboardLayout title="Neue Wartung">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">Neue Instandhaltung erfassen</h1>
+
+    <form action="/api/instandhaltung/neu" method="POST" class="bg-white rounded-lg shadow p-6 space-y-6" enctype="multipart/form-data">
+      
+      <!-- Objekt -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Objekt *</label>
+        <select name="objekt_id" required class="w-full border rounded-lg px-3 py-2">
+          <option value="">Bitte wählen...</option>
+          {objekte?.map(o => (
+            <option value={o.id}>{o.bezeichnung} - {o.adresse}</option>
+          ))}
+        </select>
+      </div>
+
+      <!-- Kategorie & Position -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Kategorie *</label>
+          <select name="kategorie" required class="w-full border rounded-lg px-3 py-2">
+            {kategorien.map(k => <option value={k}>{k}</option>)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Position/Ort</label>
+          <input type="text" name="position" placeholder="z.B. 3. OG, Keller, etc." class="w-full border rounded-lg px-3 py-2" />
+        </div>
+      </div>
+
+      <!-- Daten -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Durchführungsdatum *</label>
+          <input type="date" name="datum" required class="w-full border rounded-lg px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nächste Wartung</label>
+          <input type="date" name="naechste_wartung" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+      </div>
+
+      <!-- Beschreibung -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung *</label>
+        <textarea name="beschreibung" rows="4" required class="w-full border rounded-lg px-3 py-2" placeholder="Detaillierte Beschreibung der Arbeiten..."></textarea>
+      </div>
+
+      <!-- Kosten -->
+      <div class="bg-gray-50 p-4 rounded-lg space-y-3">
+        <h3 class="font-medium text-gray-900">Kosten</h3>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs text-gray-600 mb-1">Material (€)</label>
+            <input type="number" name="kosten_material" step="0.01" min="0" value="0" class="w-full border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-600 mb-1">Lohn (€)</label>
+            <input type="number" name="kosten_lohn" step="0.01" min="0" value="0" class="w-full border rounded px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-xs text-gray-600 mb-1">Sonstige (€)</label>
+            <input type="number" name="kosten_sonstige" step="0.01" min="0" value="0" class="w-full border rounded px-3 py-2" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">Rechnungsnummer</label>
+          <input type="text" name="rechnungsnummer" class="w-full border rounded px-3 py-2" />
+        </div>
+      </div>
+
+      <!-- Ausführende -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Durchgeführt von</label>
+          <input type="text" name="durchgefuehrt_von" placeholder="Firma/Person" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Kontakt</label>
+          <input type="text" name="kontakt" placeholder="Tel./Email" class="w-full border rounded-lg px-3 py-2" />
+        </div>
+      </div>
+
+      <!-- Erinnerung -->
+      <div class="flex items-center gap-4">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" name="erinnerung_aktiv" value="true" class="rounded" />
+          <span class="text-sm text-gray-700">Erinnerung aktivieren</span>
+        </label>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-600">Tage vorher:</span>
+          <input type="number" name="erinnerung_tage" value="14" min="1" class="w-20 border rounded px-2 py-1" />
+        </div>
+      </div>
+
+      <!-- Belege Upload -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Belege (optional)</label>
+        <input type="file" name="belege" multiple accept=".pdf,.jpg,.jpeg,.png" class="w-full border rounded-lg px-3 py-2" />
+        <p class="text-xs text-gray-500 mt-1">Mehrere Dateien möglich (PDF, JPG, PNG)</p>
+      </div>
+
+      <!-- Status -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <select name="status" class="w-full border rounded-lg px-3 py-2">
+          <option value="Geplant">Geplant</option>
+          <option value="In Bearbeitung">In Bearbeitung</option>
+          <option value="Erledigt" selected>Erledigt</option>
+        </select>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex gap-4 pt-4">
+        <a href="/instandhaltung" class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-center hover:bg-gray-200">Abbrechen</a>
+        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">Speichern</button>
+      </div>
+    </form>
+  </div>
+</DashboardLayout>

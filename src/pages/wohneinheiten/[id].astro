@@ -1,0 +1,260 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+
+const { id } = Astro.params;
+
+// Demo-Daten
+const wohneinheit = {
+  id: id,
+  bezeichnung: 'Wohnung 1. OG links',
+  objekt: { id: '1', bezeichnung: 'Musterstraße 1', adresse: 'Musterstraße 1, 12345 Berlin' },
+  wohnflaeche_m2: 85,
+  zimmeranzahl: 3,
+  kaltmiete: 850.00,
+  nebenkosten: 150.00,
+  kaution: 2550.00,
+  status: 'vermietet',
+  ausstattung: ['Balkon', 'Einbauküche', 'Keller', 'Parkplatz'],
+  mieter: {
+    name: 'Max Mustermann',
+    einzug: '2023-03-01',
+    telefon: '0176-12345678',
+    email: 'max@example.com',
+    mietvertrag_id: 'mv-001'
+  },
+  mietverlauf: [
+    { von: '2023-03-01', bis: null, mieter: 'Max Mustermann', miete: 850.00 },
+    { von: '2020-01-01', bis: '2023-02-28', mieter: 'Erika Musterfrau', miete: 800.00 }
+  ],
+  zahlungen: [
+    { datum: '2025-02-01', betrag: 1000.00, typ: 'Miete', status: 'eingegangen' },
+    { datum: '2025-01-01', betrag: 1000.00, typ: 'Miete', status: 'eingegangen' },
+    { datum: '2024-12-01', betrag: 1000.00, typ: 'Miete', status: 'eingegangen' }
+  ],
+  maengel: [
+    { id: 1, titel: 'Wasserhahn tropft', status: 'offen', dringend: true, datum: '2025-02-15' }
+  ]
+};
+
+const statusColors = {
+  frei: 'bg-green-100 text-green-800',
+  vermietet: 'bg-blue-100 text-blue-800',
+  reserviert: 'bg-yellow-100 text-yellow-800',
+  renovierung: 'bg-gray-100 text-gray-800'
+};
+---
+
+<DashboardLayout title={wohneinheit.bezeichnung}>
+  <div class="mb-6">
+    <a href="/wohneinheiten" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zur Übersicht</a>
+  </div>
+  
+  <!-- Header -->
+  <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-start">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">{wohneinheit.bezeichnung}</h1>
+        <p class="text-gray-600 mt-1">
+          <a href={`/objekte/${wohneinheit.objekt.id}`} class="hover:text-blue-600">
+            {wohneinheit.objekt.bezeichnung}
+          </a>
+        </p>
+        <p class="text-sm text-gray-500">{wohneinheit.objekt.adresse}</p>
+      </div>
+      <span class={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[wohneinheit.status]}`}>
+        {wohneinheit.status}
+      </span>
+    </div>
+    
+    <div class="mt-4 pt-4 border-t grid grid-cols-4 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">Wohnfläche:</span>
+        <p class="font-medium text-lg">{wohneinheit.wohnflaeche_m2} m²</p>
+      </div>
+      <div>
+        <span class="text-gray-500">Zimmer:</span>
+        <p class="font-medium text-lg">{wohneinheit.zimmeranzahl}</p>
+      </div>
+      <div>
+        <span class="text-gray-500">Kaltmiete:</span>
+        <p class="font-medium text-lg text-green-700">{wohneinheit.kaltmiete.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+      </div>
+      <div>
+        <span class="text-gray-500">Nebenkosten:</span>
+        <p class="font-medium text-lg">{wohneinheit.nebenkosten.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+      </div>
+    </div>
+    
+    <div class="mt-4 flex gap-2">
+      {wohneinheit.ausstattung.map(item => (
+        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">{item}</span>
+      ))}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Hauptbereich -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Aktueller Mieter -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold">👤 Aktueller Mieter</h2>
+          {wohneinheit.mieter && (
+            <a href={`/mietvertraege/${wohneinheit.mieter.mietvertrag_id}`} class="text-sm text-blue-600 hover:text-blue-800">
+              Mietvertrag anzeigen →
+            </a>
+          )}
+        </div>
+        
+        {wohneinheit.mieter ? (
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-gray-500">Name</p>
+              <p class="font-medium">{wohneinheit.mieter.name}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Einzug</p>
+              <p class="font-medium">{new Date(wohneinheit.mieter.einzug).toLocaleDateString('de-DE')}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">Telefon</p>
+              <a href={`tel:${wohneinheit.mieter.telefon}`} class="font-medium text-blue-600">{wohneinheit.mieter.telefon}</a>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500">E-Mail</p>
+              <a href={`mailto:${wohneinheit.mieter.email}`} class="font-medium text-blue-600">{wohneinheit.mieter.email}</a>
+            </div>
+          </div>
+        ) : (
+          <div class="text-center py-8">
+            <p class="text-gray-500 mb-4">Kein Mieter eingetragen</p>
+            <a href={`/mietvertraege/neu?wohneinheit=${id}`} class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              + Mietvertrag erstellen
+            </a>
+          </div>
+        )}
+      </div>
+
+      <!-- Letzte Zahlungen -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">💰 Letzte Zahlungen</h2>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-gray-600">
+            <tr>
+              <th class="px-4 py-3 text-left">Datum</th>
+              <th class="px-4 py-3 text-left">Typ</th>
+              <th class="px-4 py-3 text-right">Betrag</th>
+              <th class="px-4 py-3 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            {wohneinheit.zahlungen.map(zahlung => (
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3">{new Date(zahlung.datum).toLocaleDateString('de-DE')}</td>
+                <td class="px-4 py-3">{zahlung.typ}</td>
+                <td class="px-4 py-3 text-right font-medium">{zahlung.betrag.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</td>
+                <td class="px-4 py-3">
+                  <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">{zahlung.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div class="mt-4 text-center">
+          <a href={`/zahlungen?wohneinheit=${id}`} class="text-sm text-blue-600 hover:text-blue-800">Alle Zahlungen anzeigen →</a>
+        </div>
+      </div>
+
+      <!-- Offene Mängel -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold">⚠️ Offene Mängel</h2>
+          <a href={`/maengel/neu?wohneinheit=${id}`} class="text-sm text-blue-600 hover:text-blue-800">+ Mangel melden</a>
+        </div>
+        {wohneinheit.maengel.length > 0 ? (
+          <div class="space-y-3">
+            {wohneinheit.maengel.map(mangel => (
+              <a href={`/maengel/${mangel.id}`} class="block p-4 border-l-4 border-red-500 bg-red-50 rounded-lg hover:bg-red-100">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="font-medium">{mangel.titel}</p>
+                    <p class="text-sm text-gray-600">Gemeldet: {new Date(mangel.datum).toLocaleDateString('de-DE')}</p>
+                  </div>
+                  {mangel.dringend && <span class="px-2 py-1 bg-red-600 text-white rounded text-xs">DRINGEND</span>}
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p class="text-gray-500">Keine offenen Mängel 🎉</p>
+        )}
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Schnellaktionen -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">Aktionen</h2>
+        <div class="space-y-2">
+          <a href={`/wohneinheiten/${id}/bearbeiten`} class="block w-full px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm text-center">
+            ✏️ Bearbeiten
+          </a>
+          <a href={`/nebenkosten/neu?wohneinheit=${id}`} class="block w-full px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm text-center">
+            📋 Nebenkostenabrechnung
+          </a>
+          <button onclick="miet erhoehung()" class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
+            📈 Mieterhöhung vorschlagen
+          </button>
+        </div>
+      </div>
+
+      <!-- Kaution -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">💶 Kaution</h2>
+        <div class="text-center">
+          <p class="text-3xl font-bold text-gray-900">{wohneinheit.kaution.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+          <p class="text-sm text-gray-500 mt-1">(3 Monatsmieten)</p>
+        </div>
+        <div class="mt-4 pt-4 border-t">
+          <p class="text-sm text-gray-600">Status: <span class="text-green-600 font-medium">Hinterlegt</span></p>
+          <p class="text-xs text-gray-500 mt-1">Konto: Mietkautionskonto Sparkasse</p>
+        </div>
+      </div>
+
+      <!-- Mietverlauf -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">📜 Mietverlauf</h2>
+        <div class="space-y-3">
+          {wohneinheit.mietverlauf.map((eintrag, index) => (
+            <div class={`p-3 rounded-lg ${index === 0 ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+              <p class="font-medium text-sm">{eintrag.mieter}</p>
+              <p class="text-xs text-gray-600">
+                {new Date(eintrag.von).toLocaleDateString('de-DE')} - 
+                {eintrag.bis ? new Date(eintrag.bis).toLocaleDateString('de-DE') : 'heute'}
+              </p>
+              <p class="text-xs text-gray-500 mt-1">{eintrag.miete.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})} Kaltmiete</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Dokumente -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">📁 Dokumente</h2>
+        <div class="space-y-2 text-sm">
+          <a href="#" class="block p-2 hover:bg-gray-50 rounded text-blue-600">📄 Übergabeprotokoll 2023</a>
+          <a href="#" class="block p-2 hover:bg-gray-50 rounded text-blue-600">📄 Mietvertrag aktuell</a>
+          <a href="#" class="block p-2 hover:bg-gray-50 rounded text-blue-600">📄 Schönheitsreparaturen</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  function mieterhoehung() {
+    const neueMiete = wohneinheit.kaltmiete * 1.03; // 3% Erhöhung
+    alert(`Vorschlag: Neue Kaltmiete ${neueMiete.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}`);
+  }
+</script>

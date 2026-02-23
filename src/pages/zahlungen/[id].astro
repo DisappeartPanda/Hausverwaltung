@@ -1,0 +1,209 @@
+---
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+
+const { id } = Astro.params;
+
+// Demo-Daten
+const zahlung = {
+  id: id,
+  datum: '2025-02-01',
+  betrag: 1000.00,
+  typ: 'Miete',
+  status: 'eingegangen',
+  mieter: { name: 'Max Mustermann', id: 'm-001' },
+  wohneinheit: { bezeichnung: 'Wohnung 1. OG links', id: 'we-001', objekt: 'Musterstraße 1' },
+  mietvertrag_id: 'mv-001',
+  zeitraum: 'Februar 2025',
+  zahlungsweise: 'Überweisung',
+  buchungsdatum: '2025-02-01',
+  notizen: 'Pünktlich überwiesen',
+  beleg: 'kontoauszug_feb.pdf'
+};
+
+const statusLabels: Record<string, { text: string; class: string }> = {
+  eingegangen: { text: '✅ Eingegangen', class: 'bg-green-100 text-green-800' },
+  ausstehend: { text: '⏳ Ausstehend', class: 'bg-yellow-100 text-yellow-800' },
+  ueberfaellig: { text: '🔴 Überfällig', class: 'bg-red-100 text-red-800' },
+  storniert: { text: '❌ Storniert', class: 'bg-gray-100 text-gray-800' }
+};
+---
+
+<DashboardLayout title={`Zahlung ${zahlung.typ}`}>
+  <div class="mb-6">
+    <a href="/zahlungen" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zur Übersicht</a>
+  </div>
+  
+  <!-- Header -->
+  <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <div class="flex justify-between items-start">
+      <div>
+        <div class="flex items-center gap-3 mb-2">
+          <h1 class="text-2xl font-bold text-gray-900">{zahlung.typ}</h1>
+          <span class={`px-3 py-1 rounded-full text-sm font-medium ${statusLabels[zahlung.status].class}`}>
+            {statusLabels[zahlung.status].text}
+          </span>
+        </div>
+        <p class="text-gray-600">{zahlung.zeitraum}</p>
+      </div>
+      <div class="text-right">
+        <p class="text-4xl font-bold text-green-700">{zahlung.betrag.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
+        <p class="text-sm text-gray-500">{new Date(zahlung.datum).toLocaleDateString('de-DE')}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Details -->
+    <div class="lg:col-span-2 space-y-6">
+      <!-- Zahlungsdetails -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">📋 Zahlungsdetails</h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-gray-500">Zahlungsweise</p>
+            <p class="font-medium">{zahlung.zahlungsweise}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Buchungsdatum</p>
+            <p class="font-medium">{new Date(zahlung.buchungsdatum).toLocaleDateString('de-DE')}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Referenz/Zeitraum</p>
+            <p class="font-medium">{zahlung.zeitraum}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-500">Zahlungs-ID</p>
+            <p class="font-medium text-gray-600">{zahlung.id}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notizen -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">📝 Notizen</h2>
+        <p class="text-gray-700">{zahlung.notizen || 'Keine Notizen'}</p>
+        <div class="mt-4">
+          <textarea class="w-full px-3 py-2 border rounded-md" rows="2" placeholder="Notiz hinzufügen..."></textarea>
+          <button class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">Speichern</button>
+        </div>
+      </div>
+
+      <!-- Beleg -->
+      {zahlung.beleg && (
+        <div class="bg-white rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold mb-4">📎 Beleg</h2>
+          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">📄</span>
+              <div>
+                <p class="font-medium">{zahlung.beleg}</p>
+                <p class="text-xs text-gray-500">PDF-Dokument</p>
+              </div>
+            </div>
+            <button class="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
+              Herunterladen
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+      <!-- Verknüpfungen -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">🔗 Verknüpfungen</h2>
+        <div class="space-y-3">
+          <a href={`/mieter/${zahlung.mieter.id}`} class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+            <p class="text-xs text-gray-500">Mieter</p>
+            <p class="font-medium">{zahlung.mieter.name}</p>
+          </a>
+          <a href={`/wohneinheiten/${zahlung.wohneinheit.id}`} class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+            <p class="text-xs text-gray-500">Wohneinheit</p>
+            <p class="font-medium">{zahlung.wohneinheit.bezeichnung}</p>
+            <p class="text-xs text-gray-600">{zahlung.wohneinheit.objekt}</p>
+          </a>
+          <a href={`/mietvertraege/${zahlung.mietvertrag_id}`} class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100">
+            <p class="text-xs text-gray-500">Mietvertrag</p>
+            <p class="font-medium">Vertrag anzeigen</p>
+          </a>
+        </div>
+      </div>
+
+      <!-- Aktionen -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">Aktionen</h2>
+        <div class="space-y-2">
+          {zahlung.status === 'ausstehend' && (
+            <button onclick="statusAendern('eingegangen')" class="w-full px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm">
+              ✅ Als eingegangen markieren
+            </button>
+          )}
+          {zahlung.status === 'ausstehend' && (
+            <button onclick="statusAendern('ueberfaellig')" class="w-full px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">
+              🔴 Als überfällig markieren
+            </button>
+          )}
+          <button onclick="mahnungSenden()" class="w-full px-4 py-2 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 text-sm">
+            📨 Mahnung senden
+          </button>
+          <button onclick="quittungErstellen()" class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
+            🧾 Quittung erstellen
+          </button>
+          <button onclick="stornieren()" class="w-full px-4 py-2 bg-red-50 text-red-700 rounded hover:bg-red-100 text-sm">
+            ❌ Stornieren
+          </button>
+        </div>
+      </div>
+
+      <!-- Weitere Zahlungen -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold mb-4">📊 Zahlungsübersicht</h2>
+        <div class="space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-gray-600">Dieses Jahr:</span>
+            <span class="font-medium">2.000,00 €</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-600">Letztes Jahr:</span>
+            <span class="font-medium">12.000,00 €</span>
+          </div>
+          <div class="flex justify-between text-green-700">
+            <span>Zahlungsmoral:</span>
+            <span class="font-bold">100% ✅</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  function statusAendern(neuerStatus: string) {
+    const statusText = {
+      'eingegangen': 'eingegangen',
+      'ueberfaellig': 'überfällig'
+    }[neuerStatus];
+    if (confirm(`Zahlung als "${statusText}" markieren?`)) {
+      alert(`Status geändert zu: ${statusText}`);
+      window.location.reload();
+    }
+  }
+  
+  function mahnungSenden() {
+    if (confirm('Mahnung an Mieter senden?')) {
+      alert('Mahnung wurde erstellt und per E-Mail versendet');
+    }
+  }
+  
+  function quittungErstellen() {
+    alert('Quittung wird als PDF generiert...');
+  }
+  
+  function stornieren() {
+    if (confirm('Zahlung wirklich stornieren?')) {
+      alert('Zahlung storniert');
+      window.location.href = '/zahlungen';
+    }
+  }
+</script>
