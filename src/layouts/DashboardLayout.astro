@@ -1,112 +1,110 @@
 ---
-import Layout from './Layout.astro';
+import '../styles/global.css';
+import Navigation from '../components/index/Navigation.astro';
 
 interface Props {
   title: string;
+  fullWidth?: boolean;
 }
 
-const { title } = Astro.props;
+const { title, fullWidth = false } = Astro.props;
 ---
 
-<Layout title={title}>
-  <!-- Loading State -->
-  <div id="loading" class="flex items-center justify-center min-h-screen bg-gray-50">
-    <div class="text-center">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-      <p class="mt-4 text-gray-600">Wird geladen...</p>
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+  </head>
+
+  <body class:list={["layout", fullWidth && "full-width"]}>
+    <Navigation />
+
+    <div class="dashboard-surface">
+      <div class="ui-grid-surface">
+        <main class="main-content">
+          <slot />
+        </main>
+      </div>
     </div>
-  </div>
+  </body>
+</html>
 
-  <!-- Geschützter Content -->
-  <div id="app" class="hidden">
-    <div class="flex h-screen bg-gray-100">
-      <!-- Sidebar -->
-      <aside class="w-64 bg-white shadow-md flex flex-col">
-        <div class="p-6 border-b">
-          <h1 class="text-xl font-bold text-gray-800">🏠 Hausverwaltung</h1>
-          <p id="user-name" class="text-sm text-gray-600 mt-1">Laden...</p>
-        </div>
-        
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-          <a href="/dashboard" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/dashboard">📊 Dashboard</a>
-          <a href="/objekte" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/objekte">🏢 Objekte</a>
-          <a href="/wohneinheiten" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/wohneinheiten">🚪 Wohneinheiten</a>
-          <a href="/mieter" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/mieter">👥 Mieter</a>
-          <a href="/mietvertraege" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/mietvertraege">📄 Verträge</a>
-          <a href="/zahlungen" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/zahlungen">💰 Zahlungen</a>
-          <a href="/maengel" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/maengel">⚠️ Mängel</a>
-          
-          <!-- NEU: Instandhaltung -->
-          <div class="pt-2 mt-2 border-t">
-            <a href="/instandhaltung" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/instandhaltung">🔧 Instandhaltung</a>
-          </div>
-          
-          <!-- NEU: Nebenkosten -->
-          <div class="pt-2 mt-2 border-t">
-            <a href="/nebenkosten" class="nav-link block px-4 py-2 rounded hover:bg-gray-100 text-gray-700 text-sm" data-path="/nebenkosten">📋 Nebenkosten</a>
-          </div>
-        </nav>
-        
-        <div class="p-4 border-t">
-          <button id="logout" class="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm transition">
-            Abmelden
-          </button>
-        </div>
-      </aside>
+<style>
+  /* -------------------------------------------------------
+     Surface / Background
+  ------------------------------------------------------- */
+  .dashboard-surface{
+    min-height: 100vh;
+    background: var(--dark);
+    position: relative;
+    isolation: isolate; /* eigener stacking context */
+  }
 
-      <!-- Main Content -->
-      <main class="flex-1 overflow-auto p-6">
-        <slot />
-      </main>
-    </div>
-  </div>
-</Layout>
+  /* ✅ WICHTIG: Overlays dürfen NIE klicken blockieren */
+  .dashboard-surface::before,
+  .dashboard-surface::after{
+    pointer-events: none !important;
+    z-index: 0;
+  }
 
-<script>
-  import { supabase } from '../lib/supabase';
-  
-  const init = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      window.location.href = '/login';
-      return;
-    }
-    
-    // Vermieter-Daten laden
-    const { data: vermieter } = await supabase
-      .from('vermieter')
-      .select('vorname, nachname')
-      .eq('user_id', session.user.id)
-      .single();
-    
-    document.getElementById('user-name')!.textContent = 
-      vermieter ? `${vermieter.vorname} ${vermieter.nachname}` : 'Unbekannt';
-    
-    // Aktiven Link markieren
-    const currentPath = window.location.pathname;
-    document.querySelectorAll('.nav-link').forEach(link => {
-      const linkPath = link.getAttribute('data-path');
-      if (linkPath && currentPath.startsWith(linkPath)) {
-        link.classList.add('bg-blue-100', 'text-blue-800', 'font-medium');
-      }
-    });
-    
-    // Loading ausblenden, App einblenden
-    document.getElementById('loading')!.classList.add('hidden');
-    document.getElementById('app')!.classList.remove('hidden');
-  };
-  
-  document.getElementById('logout')?.addEventListener('click', async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/login';
-  });
-  
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT' || !session) {
-      window.location.href = '/login';
-    }
-  });
-  
-  init();
-</script>
+  .dashboard-surface::before{
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      var(--dark) 0%,
+      var(--dark-light) 50%,
+      #064e3b 100%
+    );
+    opacity: 0.8;
+  }
+
+  .dashboard-surface::after{
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+  }
+
+  /* -------------------------------------------------------
+     Content Layer (muss über allem liegen + klickbar)
+  ------------------------------------------------------- */
+  .ui-grid-surface{
+    position: relative;
+    z-index: 2;
+    pointer-events: auto; /* ✅ explizit klickbar */
+  }
+
+  /* Falls global.css auf ui-grid-surface Overlays nutzt: kill them */
+  .ui-grid-surface::before,
+  .ui-grid-surface::after{
+    pointer-events: none !important;
+  }
+
+  .main-content{
+    position: relative;
+    z-index: 3;
+    pointer-events: auto; /* ✅ explizit klickbar */
+
+    flex: 1;
+    overflow-y: auto;
+
+    /* Platz unter sticky/fixed Navbar */
+    padding-top: calc(var(--nav-height, 72px) + 16px);
+
+    /* du hattest 100vh — das lassen wir, aber sicher */
+    height: 100vh;
+  }
+
+  /* Sicherheitsnetz: wenn irgendwo in global.css pointer-events:none gesetzt wurde */
+  .main-content *,
+  .ui-grid-surface *{
+    pointer-events: auto;
+  }
+</style>

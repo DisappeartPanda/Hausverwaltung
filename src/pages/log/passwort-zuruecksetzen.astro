@@ -1,0 +1,366 @@
+---
+export const prerender = false;
+import Layout from '../layouts/Layout.astro';
+
+const token = Astro.url.searchParams.get('token') ?? '';
+---
+
+<Layout title="Passwort zurücksetzen | ImmobilienPro">
+  <style>
+    .page{
+      min-height: 100vh;
+      background: var(--dark);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .page::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 50%, #064e3b 100%);
+      opacity: 0.85;
+    }
+
+    .page::after{
+      content:'';
+      position:absolute;
+      inset:0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 4rem 4rem;
+      pointer-events:none;
+    }
+
+    .wrap{
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .logo-section{
+      text-align:center;
+      margin-bottom: 2rem;
+    }
+
+    .logo-link{
+      display:inline-flex;
+      align-items:center;
+      gap:.75rem;
+      text-decoration:none;
+    }
+
+    .logo-icon{
+      width: 3rem;
+      height: 3rem;
+      background: var(--primary);
+      border-radius: .75rem;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: 0 10px 25px -5px rgba(134, 239, 172, 0.3);
+      color: var(--dark);
+      font-size: 1.5rem;
+    }
+
+    .logo-title{
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-subtitle{
+      font-size: .75rem;
+      color: var(--primary);
+      letter-spacing: .12em;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-top: .1rem;
+    }
+
+    .card{
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--dark-lighter);
+      border-radius: 1.5rem;
+      padding: 2rem;
+    }
+
+    .back-btn{
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      color: var(--gray-400);
+      font-size: .875rem;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      transition: color .2s;
+      margin-bottom: 1.25rem;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-btn:hover{ color: var(--white); }
+    .back-btn svg{ width: 1rem; height: 1rem; }
+
+    .title{
+      font-size: 1.55rem;
+      font-weight: 900;
+      color: var(--white);
+      margin: 0 0 .35rem 0;
+      letter-spacing: -0.02em;
+    }
+
+    .sub{
+      color: var(--gray-400);
+      font-size: .95rem;
+      margin: 0 0 1.25rem 0;
+      line-height: 1.5;
+    }
+
+    .token-note{
+      margin: .9rem 0 1.25rem;
+      padding: .85rem .95rem;
+      border-radius: 1rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.10);
+      color: rgba(255,255,255,0.70);
+      font-size: .85rem;
+      word-break: break-all;
+    }
+
+    .form-group{ margin-bottom: 1rem; }
+
+    .label{
+      display:block;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: .5rem;
+    }
+
+    .input{
+      width: 100%;
+      padding: .9rem 1rem;
+      background: rgba(0, 0, 0, 0.30);
+      border: 1px solid var(--dark-lighter);
+      border-radius: .75rem;
+      color: var(--white);
+      font-size: 1rem;
+      transition: all .2s ease;
+    }
+    .input::placeholder{ color: var(--gray-600); }
+    .input:focus{
+      outline:none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(134,239,172,0.12);
+    }
+
+    .btn{
+      width: 100%;
+      padding: 1rem;
+      background: var(--primary);
+      color: var(--dark);
+      font-weight: 900;
+      font-size: 1rem;
+      border: none;
+      border-radius: .75rem;
+      cursor: pointer;
+      transition: all .2s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: .6rem;
+      margin-top: .25rem;
+    }
+    .btn:hover:not(:disabled){
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 25px -5px rgba(134,239,172,0.25);
+    }
+    .btn:disabled{ opacity: .6; cursor: not-allowed; }
+
+    .spinner{
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid var(--dark);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+    .btn.loading .spinner{ display:block; }
+    .btn.loading .btn-text{ display:none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .msg{
+      margin-top: 1rem;
+      font-size: .875rem;
+      text-align: center;
+      display: none;
+      padding: .85rem;
+      border-radius: .9rem;
+      border: 1px solid transparent;
+    }
+    .msg.error{
+      color: #fecaca;
+      background: rgba(220, 38, 38, 0.12);
+      border-color: rgba(220, 38, 38, 0.25);
+    }
+    .msg.success{
+      color: rgba(255,255,255,0.92);
+      background: rgba(134,239,172,0.10);
+      border-color: rgba(134,239,172,0.22);
+    }
+    .msg.visible{ display:block; }
+
+    @media (max-width: 640px){
+      .card{ padding: 1.5rem; }
+    }
+  </style>
+
+  <div class="page">
+    <div class="wrap">
+      <div class="logo-section">
+        <a href="/" class="logo-link">
+          <div class="logo-icon" aria-hidden="true">🏢</div>
+          <div>
+            <div class="logo-title">ImmobilienPro</div>
+            <div class="logo-subtitle">HAUSVERWALTUNG</div>
+          </div>
+        </a>
+      </div>
+
+      <div class="card">
+        <a class="back-btn" href="/login">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          Zurück zum Login
+        </a>
+
+        <h1 class="title">Neues Passwort setzen</h1>
+        <p class="sub">Wählen Sie ein neues Passwort für Ihr Konto.</p>
+
+        {token ? (
+          <div class="token-note">
+            Token erkannt. (Wird an die API gesendet)
+          </div>
+        ) : (
+          <div class="token-note">
+            Kein Token gefunden. Bitte öffnen Sie den Link aus Ihrer E-Mail.
+          </div>
+        )}
+
+        <form id="resetForm">
+  <input type="hidden" name="token" id="token" value={token} />
+
+  <div class="form-group">
+    <label class="label" for="password">Neues Passwort</label>
+    <input
+      class="input"
+      id="password"
+      name="password"
+      type="password"
+      minlength="6"
+      required
+      placeholder="••••••••"
+    />
+  </div>
+
+  <div class="form-group">
+    <label class="label" for="password2">Passwort wiederholen</label>
+    <input
+      class="input"
+      id="password2"
+      name="password2"
+      type="password"
+      minlength="6"
+      required
+      placeholder="••••••••"
+    />
+  </div>
+
+  <button type="submit" class="btn" id="submitBtn" disabled={!token}>
+    <div class="spinner" aria-hidden="true"></div>
+    <span class="btn-text">Passwort aktualisieren</span>
+  </button>
+
+  <div id="msgError" class="msg error"></div>
+  <div id="msgSuccess" class="msg success"></div>
+</form>
+
+  <script>
+    document.getElementById('resetForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const form = e.target;
+      const submitBtn = document.getElementById('submitBtn');
+      const msgError = document.getElementById('msgError');
+      const msgSuccess = document.getElementById('msgSuccess');
+
+      if (!submitBtn || !msgError || !msgSuccess || !(form instanceof HTMLFormElement)) return;
+
+      msgError.classList.remove('visible');
+      msgSuccess.classList.remove('visible');
+      msgError.textContent = '';
+      msgSuccess.textContent = '';
+
+      const fd = new FormData(form);
+      const token = fd.get('token');
+      const password = fd.get('password');
+      const password2 = fd.get('password2');
+
+      if (!token) {
+        msgError.textContent = 'Kein Token vorhanden. Bitte nutzen Sie den Link aus der E-Mail.';
+        msgError.classList.add('visible');
+        return;
+      }
+
+      if (password !== password2) {
+        msgError.textContent = 'Die Passwörter stimmen nicht überein.';
+        msgError.classList.add('visible');
+        return;
+      }
+
+      submitBtn.setAttribute('disabled', 'true');
+      submitBtn.classList.add('loading');
+
+      try {
+        const res = await fetch('/api/passwort-zuruecksetzen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && (data.success === true || data.ok === true)) {
+          msgSuccess.textContent = 'Passwort erfolgreich geändert. Sie werden zum Login weitergeleitet...';
+          msgSuccess.classList.add('visible');
+          setTimeout(() => { window.location.href = '/login'; }, 900);
+          return;
+        }
+
+        throw new Error(data.error || 'Token ungültig oder abgelaufen.');
+      } catch (err) {
+        msgError.textContent = err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten';
+        msgError.classList.add('visible');
+      } finally {
+        submitBtn.removeAttribute('disabled');
+        submitBtn.classList.remove('loading');
+      }
+    });
+  </script>
+</Layout>

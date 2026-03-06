@@ -14,5 +14,9 @@ const { title } = Astro.props;
 </head>
 <body>
     <slot />
+    <!-- Füge dies vor dem schließenden </body> im Layout ein -->
+<script>
+  import '../lib/supabase.ts';
+</script>
 </body>
 </html>

@@ -1,0 +1,33 @@
+---
+import { createServerClient } from '@supabase/ssr';
+
+const supabase = createServerClient(
+  import.meta.env.PUBLIC_SUPABASE_URL,
+  import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+  {
+    cookies: {
+      get(key) {
+        return Astro.cookies.get(key)?.value;
+      },
+      set(key, value, options) {
+        Astro.cookies.set(key, value, options);
+      },
+      remove(key, options) {
+        Astro.cookies.delete(key, options);
+      },
+    },
+  }
+);
+
+const url = new URL(Astro.request.url);
+const code = url.searchParams.get('code');
+
+// Wenn du Magic Link / OAuth nutzt, kommt ein "code" zurück.
+// Wir tauschen den gegen eine Session und setzen dabei Cookies.
+if (code) {
+  await supabase.auth.exchangeCodeForSession(code);
+}
+
+// Danach zurück ins Dashboard (oder dahin wo du willst)
+return Astro.redirect('/dashboard');
+---

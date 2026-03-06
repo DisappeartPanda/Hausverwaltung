@@ -1,0 +1,95 @@
+---
+import type { DashboardStats } from '../../lib/dashboard/dashboardStats';
+import StatBox from './StatBox.astro';
+
+interface Props {
+  stats: DashboardStats;
+}
+
+const { stats } = Astro.props;
+
+// ✅ Robust: akzeptiert 0..1 oder 0..100
+const toPercent = (v: number) => {
+  if (!Number.isFinite(v)) return 0;
+  const n = v <= 1 ? v * 100 : v;
+  return Math.max(0, Math.min(100, Math.round(n)));
+};
+
+const leerstandPercent = toPercent(stats.leerstandRate);
+const wartungenTotal = (stats.wartungenOffen ?? 0) + (stats.wartungenUeberfaellig ?? 0);
+---
+
+<div class="stats-container">
+  <h2>Übersicht</h2>
+
+  <div class="stats-grid">
+    <StatBox
+      icon="building"
+      color="blue"
+      value={String(stats.objekte ?? 0)}
+      label="Objekte"
+    />
+
+    <StatBox
+      icon="home"
+      color="green"
+      value={`${stats.vermietet ?? 0}/${stats.einheiten ?? 0}`}
+      label="Vermietet"
+    />
+
+    <StatBox
+      icon="users"
+      color="purple"
+      value={String(stats.mieter ?? 0)}
+      label="Mieter"
+    />
+
+    <StatBox
+      icon="euro"
+      color="orange"
+      value={`${(stats.mieteGesamt ?? 0).toLocaleString('de-DE')}€`}
+      label="Miete / Monat"
+    />
+
+    <StatBox
+      icon="chart"
+      color="red"
+      value={`${leerstandPercent}%`}
+      label="Leerstand"
+    />
+
+    <StatBox
+      icon="tool"
+      color="yellow"
+      value={String(wartungenTotal)}
+      label="Wartungen"
+    />
+  </div>
+</div>
+
+<style>
+  .stats-container {
+    background: white;
+    border-radius: 1.5rem;
+    padding: 2rem;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+    height: 100%;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 1.5rem 0;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+</style>

@@ -1,0 +1,204 @@
+---
+import ServiceCard from './ServiceCard.astro';
+
+const services = [
+  {
+    icon: '👥',
+    title: 'Mietverwaltung',
+    description: 'Komplette Verwaltung Ihrer Mietobjekte – von der Mietersuche bis zur Vertragskündigung.',
+    features: ['Mieterauswahl & -betreuung', 'Mietvertragsmanagement', 'Mietzinskontrolle', 'Umzugskoordination'],
+    featured: true,
+    isNew: true
+  },
+  {
+    icon: '📊',
+    title: 'Nebenkostenabrechnung',
+    description: 'Transparente und rechtskonforme Abrechnungen für Eigentümer und Mieter.',
+    features: ['Jährliche Abrechnungen', 'Betriebskostenoptimierung', 'Heizkostenabrechnung', 'Einspruchsbearbeitung'],
+    featured: false,
+    isNew: false
+  },
+  {
+    icon: '🔧',
+    title: 'Instandhaltung',
+    description: 'Professionelles Management von Wartung und Reparaturen für Ihre Immobilie.',
+    features: ['Wartungsplanung', 'Handwerkerkoordination', 'Notfallservice 24/7', 'Kostenkontrolle'],
+    featured: false,
+    isNew: false
+  },
+  {
+    icon: '📈',
+    title: 'Wirtschaftsplanung',
+    description: 'Strategische Planung und Optimierung der Bewirtschaftungskosten.',
+    features: ['Jahresplanung', 'Kostenanalyse', 'Investitionsplanung', 'Renditeoptimierung'],
+    featured: false,
+    isNew: false
+  },
+  {
+    icon: '🛡️',
+    title: 'Rechtsschutz',
+    description: 'Sicherer Umgang mit allen rechtlichen Aspekten der Immobilienverwaltung.',
+    features: ['Vertragsprüfung', 'Mahnbescheide', 'Räumungsklagen', 'Rechtsberatung'],
+    featured: false,
+    isNew: false
+  },
+  {
+    icon: '🤖',
+    title: 'KI-gestützter Service',
+    description: 'Moderne Technologie für schnellen und effizienten Kundenservice.',
+    features: ['24/7 KI-Assistent', 'Automatische Antworten', 'Dokumentenanalyse', 'Terminplanung'],
+    featured: true,
+    isNew: true
+  }
+];
+---
+
+<section class="services" id="services" aria-label="Leistungen">
+  <div class="services-bg" aria-hidden="true"></div>
+
+  <div class="container services-inner">
+    <div class="section-header">
+      <div class="eyebrow">
+        <span class="dot"></span>
+        <span>Leistungen</span>
+      </div>
+
+      <h2 class="section-title">Unsere Leistungen</h2>
+      <p class="section-subtitle">
+        Professionelle Hausverwaltung für Eigentümer und Mieter – digital, effizient und transparent.
+      </p>
+    </div>
+
+    <div class="services-grid">
+      {services.map((service) => (
+        <ServiceCard {...service} />
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .services{
+    position: relative;
+    padding: 6rem 0;
+    background: var(--dark);
+    overflow: hidden;
+  }
+
+  /* Gradient + Grid Overlay wie Register */
+  .services::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 50%, #064e3b 100%);
+    opacity: .85;
+    z-index: 0;
+  }
+
+  .services::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+    pointer-events:none;
+    z-index: 0;
+  }
+
+  /* weiche Highlight-Fläche */
+  .services-bg{
+    position:absolute;
+    inset:0;
+    background:
+      radial-gradient(700px 400px at 15% 10%, rgba(134,239,172,0.18), transparent 60%),
+      radial-gradient(650px 380px at 85% 30%, rgba(147,197,253,0.12), transparent 60%);
+    z-index: 0;
+  }
+
+  .services-inner{
+    position: relative;
+    z-index: 1;
+  }
+
+  .section-header{
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto 3rem;
+  }
+
+  .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    gap:.6rem;
+    padding: .4rem .85rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--gray-400);
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    margin-bottom: 1rem;
+  }
+
+  .dot{
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px rgba(134,239,172,0.12);
+  }
+
+  .section-title{
+    color: var(--white);
+    font-size: clamp(2rem, 3vw, 2.6rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    margin: 0 0 .75rem 0;
+  }
+
+  .section-subtitle{
+    color: var(--gray-400);
+    font-size: 1.05rem;
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .services-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+
+  /* Damit ServiceCard im Glass-Look wirkt, falls sie noch weiß ist:
+     -> wir stylen den Card-Wrapper über :global, ohne ServiceCard anfassen zu müssen */
+  .services-grid :global(.service-card),
+  .services-grid :global(article){
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 1.25rem;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.25);
+  }
+
+  .services-grid :global(.service-card:hover),
+  .services-grid :global(article:hover){
+    border-color: rgba(134,239,172,0.35);
+    background: rgba(255,255,255,0.07);
+    transform: translateY(-2px);
+    transition: all .25s ease;
+  }
+
+  @media (max-width: 1024px){
+    .services-grid{ grid-template-columns: repeat(2, 1fr); }
+    .services{ padding: 5rem 0; }
+  }
+
+  @media (max-width: 768px){
+    .services-grid{ grid-template-columns: 1fr; }
+    .section-header{ margin-bottom: 2.25rem; }
+  }
+</style>

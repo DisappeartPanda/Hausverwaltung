@@ -2,8 +2,9 @@ import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
 
 export default defineConfig({
-  output: 'static',
+  output: 'server',  // ← HIER ÄNDERN!
   integrations: [tailwind()],
+
   
   vite: {
     define: {
@@ -12,3 +13,4 @@ export default defineConfig({
     }
   }
 });
+

@@ -1,145 +1,889 @@
 ---
+export const prerender = false;
+
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { requireLandlordSession } from '../../lib/supabase/serverAuth';
+
+type Objekt = {
+  id: string;
+  vermieter_id: string;
+  bezeichnung: string | null;
+  adresse: string | null;
+  plz: string | null;
+  stadt: string | null;
+
+  baujahr: number | null;
+  wohnflaeche_qm: number | null;
+  grundstuecksflaeche_qm: number | null;
+  zimmer_anzahl: number | null;
+
+  bauweise: string | null;
+  heizungsart: string | null;
+
+  // optional
+  wert_eur?: number | null;
+};
+
+type Wohneinheit = {
+  id: string;
+  objekt_id: string;
+  bezeichnung: string | null;
+  wohnflaeche_qm: number | null;
+  zimmer_anzahl: number | null;
+  kaltmiete: number | null;
+  status: string | null;
+  verfuegbar_ab: string | null;
+};
+
+type Handwerker = {
+  id: string;
+  objekt_id: string;
+  gewerk: string;
+  firmenname: string;
+  website: string | null;
+};
+
+const safeText = (v: unknown, fallback = '—') => {
+  const s = String(v ?? '').trim();
+  return s.length ? s : fallback;
+};
+const safeNum = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+const fmtEUR = (n: number) => n.toLocaleString('de-DE') + ' €';
+const fmtM2 = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' m²';
+
+const { supabase, user } = await requireLandlordSession(Astro);
+
+// ✅ ID aus Route + optional UUID check
+const id = Astro.params.id;
+if (!id) throw new Error('Keine Objekt-ID in der Route.');
+
+const uuidRegex =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+if (!uuidRegex.test(id)) throw new Error('Ungültige Objekt-ID.');
+
+let objekt: Objekt | null = null;
+let units: Wohneinheit[] = [];
+let handwerker: Handwerker[] = [];
+
+let loadError = false;
+let errorMessage = '';
+
+let unitTotal = 0;
+let unitOccupied = 0;
+let unitVacant = 0;
+let incomeMonth = 0;
+
+// Instandhaltung KPI (best effort)
+let maintOpen = 0;
+let maintTotal = 0;
+
+try {
+  // ✅ Ownership: User muss mind. 1 Einheit in diesem Objekt besitzen
+  const { data: owned, error: ownErr } = await supabase
+    .from('wohneinheiten')
+    .select('objekt_id')
+    .eq('eigentuemer_id', user.id)
+    .eq('objekt_id', id)
+    .limit(1);
+
+  if (ownErr) throw ownErr;
+  if (!owned || owned.length === 0) {
+    objekt = null;
+  } else {
+    // Objekt
+    const { data: o, error: oErr } = await supabase
+      .from('objekte')
+      .select('id, vermieter_id, bezeichnung, adresse, plz, stadt, baujahr, wohnflaeche_qm, grundstuecksflaeche_qm, zimmer_anzahl, bauweise, heizungsart, wert_eur')
+      .eq('id', id)
+      .single();
+
+    if (oErr) throw oErr;
+    objekt = o as Objekt;
+
+    // ✅ Wohneinheiten (kein etage!)
+    const { data: u, error: uErr } = await supabase
+      .from('wohneinheiten')
+      .select('id, objekt_id, bezeichnung, wohnflaeche_qm, zimmer_anzahl, kaltmiete, status, verfuegbar_ab')
+      .eq('objekt_id', id)
+      .order('bezeichnung');
+
+    if (uErr) throw uErr;
+    units = (u ?? []) as Wohneinheit[];
+
+    unitTotal = units.length;
+    unitVacant = units.filter((x) => String(x.status ?? '').toLowerCase().includes('frei')).length;
+    unitOccupied = Math.max(0, unitTotal - unitVacant);
+
+    incomeMonth = units.reduce((sum, x) => {
+      const k = safeNum(x.kaltmiete);
+      return k == null ? sum : sum + k;
+    }, 0);
+
+    // Stammhandwerker
+    const { data: hw, error: hwErr } = await supabase
+      .from('objekt_handwerker')
+      .select('id, objekt_id, gewerk, firmenname, website')
+      .eq('objekt_id', id)
+      .order('gewerk');
+
+    if (hwErr) throw hwErr;
+    handwerker = (hw ?? []) as Handwerker[];
+
+    // Instandhaltung (optional)
+    const { data: mAll, error: mErr } = await supabase
+      .from('instandhaltung')
+      .select('id, status, objekt_id')
+      .eq('objekt_id', id);
+
+    if (!mErr) {
+      maintTotal = (mAll ?? []).length;
+      maintOpen = (mAll ?? []).filter((x: any) => {
+        const s = String(x.status ?? '').toLowerCase();
+        return s.includes('offen') || s.includes('neu') || s.includes('in bearbeitung') || s.includes('open');
+      }).length;
+    }
+  }
+} catch (e: any) {
+  loadError = true;
+  errorMessage = e?.message ?? 'DB Fehler';
+}
+
+const title = objekt ? safeText(objekt.bezeichnung, 'Unbenanntes Objekt') : 'Objekt';
+const addrLine1 = objekt ? safeText(objekt.adresse) : '—';
+const addrLine2 = objekt ? ([objekt.plz, objekt.stadt].filter(Boolean).join(' ').trim() || '—') : '—';
+
+
+const hasBasics = Boolean(objekt && (objekt.adresse || objekt.plz || objekt.stadt));
+const occPct = unitTotal ? Math.round((unitOccupied / unitTotal) * 100) : 0;
+
+const maintLabel =
+  maintTotal === 0 ? 'Keine Vorgänge' :
+  maintOpen === 0 ? 'Alles ok' :
+  `${maintOpen} offen`;
+
+const valueText =
+  objekt && safeNum((objekt as any).wert_eur) != null ? fmtEUR(Number((objekt as any).wert_eur)) : '—';
+
+const gewerkLabel = (g: string) => {
+  const x = String(g ?? '').toLowerCase();
+  if (x === 'maler') return 'Maler';
+  if (x === 'elektriker') return 'Elektriker';
+  if (x === 'sanitaer') return 'Sanitär';
+  return safeText(g);
+};
+
+const normalizeUrl = (raw: string | null) => {
+  const u = String(raw ?? '').trim();
+  if (!u) return '';
+  if (u.startsWith('http://') || u.startsWith('https://')) return u;
+  return `https://${u}`;
+};
 ---
 
-<DashboardLayout title="Nebenkosten Übersicht">
-  <div class="mb-6">
-    <a href="/dashboard" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zum Dashboard</a>
-  </div>
-  
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Nebenkostenabrechnungen</h1>
-    <a href="/nebenkosten/neu" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-      + Neue Abrechnung
-    </a>
-  </div>
+<DashboardLayout title={title}>
+  <section class="page">
+    <header class="top">
+      <div class="top-left">
+        <a class="back" href="/objekte">← Zurück zu Objekten</a>
 
-  <!-- Filter -->
-  <div class="bg-white rounded-lg shadow p-4 mb-6">
-    <div class="flex gap-4">
-      <div class="flex-1">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Jahr</label>
-        <select id="filter-jahr" class="w-full px-3 py-2 border rounded-md">
-          <option value="">Alle Jahre</option>
-          <option value="2024">2024</option>
-          <option value="2023">2023</option>
-          <option value="2022">2022</option>
-        </select>
-      </div>
-      <div class="flex-1">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Objekt</label>
-        <select id="filter-objekt" class="w-full px-3 py-2 border rounded-md">
-          <option value="">Alle Objekte</option>
-        </select>
-      </div>
-      <div class="flex-1">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-        <select id="filter-status" class="w-full px-3 py-2 border rounded-md">
-          <option value="">Alle Status</option>
-          <option value="entwurf">Entwurf</option>
-          <option value="versendet">Versendet</option>
-          <option value="abgeschlossen">Abgeschlossen</option>
-        </select>
-      </div>
-    </div>
-  </div>
+        <div class="headline">
+          <h1 class="title">{title}</h1>
+          <div class="status">
+            {objekt ? (
+              hasBasics ? <span class="pill pill-ok">Vollständig</span> : <span class="pill pill-warn">Daten fehlen</span>
+            ) : (
+              <span class="pill pill-dim">—</span>
+            )}
+          </div>
+        </div>
 
-  <!-- Liste -->
-  <div class="bg-white rounded-lg shadow overflow-hidden">
-    <table class="w-full text-sm">
-      <thead class="bg-gray-50 text-gray-600">
-        <tr>
-          <th class="px-6 py-3 text-left">Abrechnungsjahr</th>
-          <th class="px-6 py-3 text-left">Objekt</th>
-          <th class="px-6 py-3 text-left">Zeitraum</th>
-          <th class="px-6 py-3 text-left">Gesamtkosten</th>
-          <th class="px-6 py-3 text-left">Status</th>
-          <th class="px-6 py-3 text-left">Aktionen</th>
-        </tr>
-      </thead>
-      <tbody id="abrechnungen-liste" class="divide-y divide-gray-200">
-        <tr>
-          <td colspan="6" class="px-6 py-8 text-center text-gray-500">Laden...</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+        <div class="address">
+          <span>{addrLine1}</span>
+          <span>{addrLine2}</span>
+        </div>
 
-  <!-- Hinweis -->
-  <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-    <h3 class="font-bold mb-2">⚠️ Wichtige Fristen:</h3>
-    <ul class="list-disc pl-5 space-y-1">
-      <li>Abrechnung muss spätestens 12 Monate nach Ende des Abrechnungsjahres vorliegen (§ 556 BGB)</li>
-      <li>Mieter hat 1 Jahr Zeit für Widerspruch</li>
-      <li>Heizkosten: Mindestens 50% nach Verbrauch umlegen (HeizkostenV)</li>
-    </ul>
-  </div>
+        <div class="actions">
+          <a class="btn btn-primary" href={`/objekte/${id}/bearbeiten`}>
+            <span class="btn-icon">✎</span>
+            Bearbeiten
+          </a>
+          <a class="btn" href={`/objekte/${id}#dokumente`}>Dokumente</a>
+          <a
+  href={`/wohneinheiten/neu?objekt=${objekt.id}`}
+  class="btn-new-unit"
+>
+  + Neue Wohneinheit
+</a>
+        </div>
+      </div>
+
+      <div class="top-right">
+        <div class="kpis" aria-label="Objekt-KPIs">
+          <article class="kpi kpi-accent">
+            <div class="kpi-label">Wohneinheiten</div>
+            <div class="kpi-value">{unitTotal}</div>
+            <div class="kpi-hint">{unitOccupied}/{unitTotal} vermietet</div>
+          </article>
+
+          <article class="kpi">
+            <div class="kpi-label">Wohnfläche</div>
+            <div class="kpi-value">{objekt && objekt.wohnflaeche_qm != null ? fmtM2(objekt.wohnflaeche_qm) : '—'}</div>
+            <div class="kpi-hint">Objekt gesamt</div>
+          </article>
+
+          <article class="kpi">
+            <div class="kpi-label">Einkommen</div>
+            <div class="kpi-value">{incomeMonth > 0 ? fmtEUR(incomeMonth) : '—'}</div>
+            <div class="kpi-hint">Kaltmiete / Monat</div>
+          </article>
+
+          <article class="kpi">
+            <div class="kpi-label">Wert</div>
+            <div class="kpi-value">{valueText}</div>
+            <div class="kpi-hint">Optional</div>
+          </article>
+
+          <article class="kpi">
+            <div class="kpi-label">Instandhaltung</div>
+            <div class="kpi-value">{maintLabel}</div>
+            <div class="kpi-hint">{maintTotal > 0 ? `${maintTotal} gesamt` : '—'}</div>
+          </article>
+
+          <article class="kpi">
+            <div class="kpi-label">Baujahr</div>
+            <div class="kpi-value">{objekt ? safeText(objekt.baujahr, '—') : '—'}</div>
+            <div class="kpi-hint">Stammdaten</div>
+          </article>
+        </div>
+      </div>
+    </header>
+
+    {loadError && (
+      <div class="state">
+        <div>
+          <div class="state-title">Konnte Objekt nicht laden</div>
+          <div class="state-subtitle">{errorMessage}</div>
+        </div>
+        <div class="state-actions">
+          <a class="btn btn-ghost" href={`/objekte/${id}`}>Neu laden</a>
+        </div>
+      </div>
+    )}
+
+    {!loadError && !objekt && (
+      <div class="empty">
+        <div class="empty-card">
+          <div class="empty-icon">🏢</div>
+          <h2>Objekt nicht gefunden</h2>
+          <p>Entweder existiert das Objekt nicht oder du hast keinen Zugriff darauf.</p>
+          <a class="btn btn-primary" href="/objekte">Zurück zur Übersicht</a>
+        </div>
+      </div>
+    )}
+
+    {!loadError && objekt && (
+      <div class="content">
+        <!-- Überblick -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Überblick</h2>
+            <div class="panel-actions">
+              <button class="chipbtn" type="button" id="copyAddr">Adresse kopieren</button>
+              <a
+                class="chipbtn"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${addrLine1}, ${addrLine2}`)}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                In Maps öffnen
+              </a>
+            </div>
+          </div>
+
+          <div class="overview-strip">
+            <div class="strip-item">
+              <div class="strip-k">Belegung</div>
+              <div class="strip-v">{unitOccupied}/{unitTotal} ({occPct}%)</div>
+              <div class="bar" aria-label="Belegung">
+                <div class="bar-fill" style={`width:${occPct}%`}></div>
+              </div>
+            </div>
+
+            <div class="strip-item">
+              <div class="strip-k">Heizung</div>
+              <div class="strip-v">{safeText(objekt.heizungsart)}</div>
+              <div class="strip-sub">{safeText(objekt.bauweise)}</div>
+            </div>
+
+            <div class="strip-item">
+              <div class="strip-k">Grundstück</div>
+              <div class="strip-v">{objekt.grundstuecksflaeche_qm != null ? fmtM2(objekt.grundstuecksflaeche_qm) : '—'}</div>
+              <div class="strip-sub">Zimmer: {safeText(objekt.zimmer_anzahl)}</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Wohneinheiten (Cards wie Objekte) -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Wohneinheiten</h2>
+            <div class="muted">{unitTotal === 1 ? '1 Einheit' : `${unitTotal} Einheiten`}</div>
+          </div>
+
+          {units.length === 0 ? (
+            <div class="subempty">
+              <div class="subempty-title">Noch keine Wohneinheiten</div>
+              <div class="subempty-sub">Lege Einheiten an, um Mieter & Verträge zu verwalten.</div>
+              <div class="subempty-actions">
+                <a class="btn btn-primary" href={`/objekte/${id}/wohneinheiten/neu`}>Wohneinheit anlegen</a>
+              </div>
+            </div>
+          ) : (
+            <div class="unitgrid">
+              {units.map((u) => {
+                const uTitle = safeText(u.bezeichnung, 'Wohneinheit');
+                const isVacant = String(u.status ?? '').toLowerCase().includes('frei');
+                const rent = safeNum(u.kaltmiete);
+                const area = safeNum(u.wohnflaeche_qm);
+
+                return (
+                  <article class="unitcard">
+                    <a class="unitlink" href={`/wohneinheiten/${u.id}`} aria-label={`Öffne ${uTitle}`}></a>
+
+                    <div class="unitbody">
+                      <div class="unit-toprow">
+                        <div class="unit-dot" aria-hidden="true"></div>
+                        <div class="badges">
+                          {isVacant ? <span class="badge-warn">Frei</span> : <span class="badge-ok">Vermietet</span>}
+                        </div>
+                      </div>
+
+                      <h3 class="unit-title">{uTitle}</h3>
+
+                      <div class="unit-kpis">
+                        <div class="kpi-main">
+                          <div class="kpi-value">{rent != null && rent > 0 ? fmtEUR(rent) : '—'}</div>
+                          <div class="kpi-label">Kaltmiete</div>
+                        </div>
+
+                        <div class="kpi-side">
+                          <div class="kpi-side-value">{area != null ? fmtM2(area) : '—'}</div>
+                          <div class="kpi-side-label">Fläche</div>
+                        </div>
+                      </div>
+
+                      <div class="unit-meta">
+                        <span>{safeText(u.zimmer_anzahl, '—')} Zi.</span>
+                        <span class="dot">•</span>
+                        <span>{safeText(u.status, '—')}</span>
+                        {u.verfuegbar_ab && (
+                          <>
+                            <span class="dot">•</span>
+                            <span>ab {safeText(u.verfuegbar_ab)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <!-- Stammhandwerker -->
+        <section class="panel" id="handwerker">
+          <div class="panel-head">
+            <h2>Stammhandwerker</h2>
+            <div class="muted">Maler, Elektriker, Sanitär</div>
+          </div>
+
+          {handwerker.length === 0 ? (
+            <div class="subempty">
+              <div class="subempty-title">Noch keine Firmen hinterlegt</div>
+              <div class="subempty-sub">
+                Hinterlege deine Stammfirmen für schnelle Wege & klare Zuständigkeiten.
+              </div>
+              <div class="subempty-actions">
+                <a class="btn" href={`/objekte/${id}#handwerker`}>Firma hinzufügen</a>
+              </div>
+            </div>
+          ) : (
+            <div class="hwgrid">
+              {handwerker.map((h) => {
+                const label = gewerkLabel(h.gewerk);
+                const href = normalizeUrl(h.website);
+
+                return (
+                  <article class="hwcard">
+                    <div class="hw-toprow">
+                      <span class="hw-badge">{label}</span>
+                      <div class="hw-dot" aria-hidden="true"></div>
+                    </div>
+
+                    <div class="hw-name">
+                      {href ? (
+                        <a class="hw-link" href={href} target="_blank" rel="noreferrer">
+                          {h.firmenname}
+                        </a>
+                      ) : (
+                        <span>{h.firmenname}</span>
+                      )}
+                    </div>
+
+                    <div class="hw-sub">
+                      {href ? 'Website öffnen →' : 'Keine Website hinterlegt'}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <!-- Dokumente -->
+        <section class="panel" id="dokumente">
+          <div class="panel-head">
+            <h2>Dokumente</h2>
+            <div class="muted">Upload/Verknüpfung kannst du hier später ergänzen.</div>
+          </div>
+
+          <div class="subempty">
+            <div class="subempty-title">Noch keine Dokumente</div>
+            <div class="subempty-sub">Z.B. Energieausweis, Grundriss, Übergabeprotokolle, Rechnungen.</div>
+            <div class="subempty-actions">
+              <a class="btn" href="#">Dokument hinzufügen</a>
+            </div>
+          </div>
+        </section>
+      </div>
+    )}
+  </section>
 </DashboardLayout>
 
 <script>
-  import { supabase } from '../../lib/supabase';
-  
-  const loadAbrechnungen = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    
-    const { data: vermieter } = await supabase
-      .from('vermieter')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single();
-    
-    if (!vermieter) return;
-    
-    // Demo-Daten (später aus DB)
-    const demoAbrechnungen = [
-      {
-        id: 1,
-        jahr: 2024,
-        objekt: { bezeichnung: 'Musterstraße 1' },
-        von: '2024-01-01',
-        bis: '2024-12-31',
-        gesamtkosten: 12500.00,
-        status: 'entwurf'
-      },
-      {
-        id: 2,
-        jahr: 2023,
-        objekt: { bezeichnung: 'Beispielweg 5' },
-        von: '2023-01-01',
-        bis: '2023-12-31',
-        gesamtkosten: 8900.50,
-        status: 'abgeschlossen'
-      }
-    ];
-    
-    const statusColors = {
-      entwurf: 'bg-gray-100 text-gray-800',
-      versendet: 'bg-blue-100 text-blue-800',
-      abgeschlossen: 'bg-green-100 text-green-800'
-    };
-    
-    const liste = document.getElementById('abrechnungen-liste')!;
-    if (demoAbrechnungen.length === 0) {
-      liste.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">Keine Abrechnungen vorhanden</td></tr>';
-      return;
+  const btn = document.getElementById('copyAddr');
+  btn?.addEventListener('click', async () => {
+    const a1 = document.querySelector('.address span:nth-child(1)')?.textContent ?? '';
+    const a2 = document.querySelector('.address span:nth-child(2)')?.textContent ?? '';
+    const text = [a1, a2].filter(Boolean).join(', ');
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Kopiert ✓';
+      setTimeout(() => (btn.textContent = 'Adresse kopieren'), 1200);
+    } catch {
+      btn.textContent = 'Nicht möglich';
+      setTimeout(() => (btn.textContent = 'Adresse kopieren'), 1200);
     }
-    
-    liste.innerHTML = demoAbrechnungen.map(a => `
-      <tr class="hover:bg-gray-50">
-        <td class="px-6 py-4 font-medium">${a.jahr}</td>
-        <td class="px-6 py-4">${a.objekt.bezeichnung}</td>
-        <td class="px-6 py-4 text-gray-600">${new Date(a.von).toLocaleDateString('de-DE')} - ${new Date(a.bis).toLocaleDateString('de-DE')}</td>
-        <td class="px-6 py-4 font-medium">${a.gesamtkosten.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</td>
-        <td class="px-6 py-4">
-          <span class="px-2 py-1 rounded-full text-xs ${statusColors[a.status as keyof typeof statusColors]}">${a.status}</span>
-        </td>
-        <td class="px-6 py-4">
-          <a href="/nebenkosten/${a.id}" class="text-blue-600 hover:text-blue-800 text-sm">Details</a>
-        </td>
-      </tr>
-    `).join('');
-  };
-  
-  loadAbrechnungen();
+  });
 </script>
+
+<style>
+  :global(:root){
+    --ip-card: rgba(16, 22, 19, 0.72);
+    --ip-card-2: rgba(12, 17, 14, 0.72);
+    --ip-border: rgba(255,255,255,0.10);
+    --ip-text: rgba(236, 242, 239, 0.92);
+    --ip-muted: rgba(190, 201, 197, 0.74);
+    --ip-accent: #22c55e;
+    --ip-shadow: 0 24px 70px rgba(0,0,0,0.45);
+  }
+
+  .page{ display:flex; flex-direction:column; gap:16px; }
+
+  .top{
+    display:grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap:14px;
+    align-items:start;
+  }
+  @media (max-width: 1100px){ .top{ grid-template-columns: 1fr; } }
+
+  .back{ color: rgba(190,201,197,0.85); text-decoration:none; font-weight:850; }
+  .back:hover{ color: rgba(236,242,239,0.92); }
+
+  .headline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; }
+  .title{ margin:0; font-size:1.65rem; font-weight:950; letter-spacing:-0.02em; color:var(--ip-text); }
+
+  .address{ margin-top:6px; display:grid; gap:2px; color: rgba(190,201,197,0.80); font-weight:650; }
+  .actions{ margin-top:12px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+
+  .btn{
+    display:inline-flex; align-items:center; gap:10px; justify-content:center;
+    padding:10px 14px; border-radius:12px;
+    border:1px solid var(--ip-border);
+    background: rgba(255,255,255,0.06);
+    color:var(--ip-text); text-decoration:none;
+    font-weight:900; font-size:0.95rem;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+  }
+  .btn:hover{ transform:translateY(-1px); background:rgba(255,255,255,0.08); box-shadow:0 18px 50px rgba(0,0,0,0.35); }
+  .btn-primary{
+    border-color: rgba(34, 197, 94, 0.35);
+    background: linear-gradient(180deg, rgba(34,197,94,0.18), rgba(34,197,94,0.08));
+    box-shadow: 0 18px 60px rgba(34,197,94,0.12);
+  }
+  .btn-primary:hover{
+    border-color: rgba(34, 197, 94, 0.55);
+    box-shadow: 0 22px 70px rgba(34,197,94,0.16);
+  }
+  .btn-ghost{ background: rgba(255,255,255,0.04); }
+  .btn-icon{
+    width:22px; height:22px; display:grid; place-items:center;
+    border-radius:8px;
+    background: rgba(34,197,94,0.14);
+    border: 1px solid rgba(34,197,94,0.22);
+    color: var(--ip-accent);
+    font-weight:900; line-height:1;
+  }
+
+  .kpis{
+    display:grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap:12px;
+  }
+  @media (max-width: 640px){ .kpis{ grid-template-columns: 1fr; } }
+
+  .kpi{
+    padding: 14px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-accent{
+    border-color: rgba(34,197,94,0.22);
+    box-shadow: 0 26px 90px rgba(0,0,0,0.35), 0 0 0 1px rgba(34,197,94,0.10) inset;
+  }
+  .kpi-label{ color: rgba(190,201,197,0.80); font-weight: 850; }
+  .kpi-value{ margin-top:8px; font-size:1.55rem; font-weight:950; color: rgba(236,242,239,0.95); }
+  .kpi-hint{ margin-top:2px; color: rgba(190,201,197,0.70); font-weight:650; font-size:0.9rem; }
+
+  .pill{
+    padding:7px 10px; border-radius:999px;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.06);
+    color: rgba(236,242,239,0.88);
+    font-weight:900; font-size:0.86rem;
+    white-space:nowrap;
+  }
+  .pill-ok{ border-color: rgba(34,197,94,0.18); background: rgba(34,197,94,0.10); color: rgba(207,255,225,0.92); }
+  .pill-warn{ border-color: rgba(250,204,21,0.20); background: rgba(250,204,21,0.10); color: rgba(255,244,204,0.92); }
+  .pill-dim{ border-color: rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: rgba(190,201,197,0.70); }
+
+  .content{ display:flex; flex-direction:column; gap:16px; }
+
+  .panel{
+    padding:16px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom: 12px;
+  }
+  .panel-head h2{ margin:0; color: var(--ip-text); font-weight:950; letter-spacing:-0.01em; font-size:1.1rem; }
+  .muted{ color: var(--ip-muted); font-weight:650; }
+
+  .panel-actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .chipbtn{
+    cursor:pointer;
+    text-decoration:none;
+    padding:8px 10px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.06);
+    color: rgba(236,242,239,0.90);
+    font-weight:900;
+    font-size:0.88rem;
+    transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+  }
+  .chipbtn:hover{ transform: translateY(-1px); background: rgba(255,255,255,0.08); border-color: rgba(34,197,94,0.18); }
+
+  .overview-strip{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap:12px;
+  }
+  @media (max-width: 980px){ .overview-strip{ grid-template-columns: 1fr; } }
+
+  .strip-item{
+    padding:12px;
+    border-radius:18px;
+    border:1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+  }
+  .strip-k{ color: rgba(190,201,197,0.75); font-weight:850; font-size:0.9rem; }
+  .strip-v{ margin-top:6px; color: rgba(236,242,239,0.92); font-weight:950; }
+  .strip-sub{ margin-top:4px; color: rgba(190,201,197,0.70); font-weight:650; font-size:0.88rem; }
+
+  .bar{
+    margin-top:10px;
+    height:10px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.05);
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    border-radius:999px;
+    background: linear-gradient(90deg, rgba(34,197,94,0.65), rgba(34,197,94,0.25));
+  }
+
+  /* Wohneinheiten Cards */
+  .unitgrid{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap:16px;
+  }
+  @media (max-width: 1100px){ .unitgrid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 700px){ .unitgrid{ grid-template-columns: 1fr; } }
+
+  .unitcard{
+    position:relative;
+    padding:18px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16,22,19,0.78), rgba(10,14,12,0.78));
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+    transition: all 180ms ease;
+    cursor:pointer;
+    overflow:hidden;
+  }
+  .unitcard:hover{
+    transform: translateY(-3px);
+    border-color: rgba(34,197,94,0.25);
+    box-shadow: 0 30px 90px rgba(0,0,0,0.45);
+  }
+  .unitlink{
+    position:absolute;
+    inset:0;
+    border-radius:20px;
+    z-index:5;
+    display:block;
+  }
+  .unitbody{
+    position:relative;
+    z-index:2;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    pointer-events:none;
+  }
+  .unit-toprow{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .unit-dot{
+    width:10px; height:10px;
+    border-radius:999px;
+    background: rgba(34,197,94,0.90);
+    box-shadow:0 0 0 4px rgba(34,197,94,0.15);
+    flex:0 0 auto;
+  }
+  .unit-title{
+    margin:0;
+    font-size:1.15rem;
+    font-weight:950;
+    color: rgba(236,242,239,0.95);
+    letter-spacing:-0.01em;
+  }
+  .unit-kpis{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:20px;
+  }
+  .kpi-main .kpi-value{
+    font-size:1.35rem;
+    font-weight:950;
+    color: rgba(236,242,239,0.95);
+    line-height:1.1;
+  }
+  .kpi-main .kpi-label{
+    font-size:0.85rem;
+    font-weight:800;
+    color: rgba(190,201,197,0.75);
+    margin-top:6px;
+  }
+  .kpi-side{ text-align:right; }
+  .kpi-side-value{
+    font-weight:900;
+    font-size:1rem;
+    color: rgba(236,242,239,0.90);
+  }
+  .kpi-side-label{
+    font-size:0.8rem;
+    color: rgba(190,201,197,0.70);
+    font-weight:800;
+    margin-top:6px;
+  }
+  .unit-meta{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    font-size:0.85rem;
+    color: rgba(190,201,197,0.70);
+    font-weight:700;
+    flex-wrap:wrap;
+  }
+  .dot{ color: rgba(190,201,197,0.35); }
+
+  .badges{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+  .badge-ok, .badge-warn{
+    padding:7px 10px;
+    border-radius:999px;
+    font-weight:900;
+    font-size:0.82rem;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.06);
+    color: rgba(236,242,239,0.85);
+    white-space:nowrap;
+  }
+  .badge-ok{
+    border-color: rgba(34,197,94,0.18);
+    background: rgba(34,197,94,0.10);
+    color: rgba(207,255,225,0.92);
+  }
+  .badge-warn{
+    border-color: rgba(250,204,21,0.20);
+    background: rgba(250,204,21,0.10);
+    color: rgba(255,244,204,0.92);
+  }
+
+  /* Handwerker Cards (gleiches Design) */
+  .hwgrid{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap:16px;
+  }
+  @media (max-width:1100px){ .hwgrid{ grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width:700px){ .hwgrid{ grid-template-columns: 1fr; } }
+
+  .hwcard{
+    padding:18px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16,22,19,0.78), rgba(10,14,12,0.78));
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+    transition: all 180ms ease;
+    overflow:hidden;
+  }
+  .hwcard:hover{
+    transform: translateY(-3px);
+    border-color: rgba(34,197,94,0.25);
+    box-shadow: 0 30px 90px rgba(0,0,0,0.45);
+  }
+  .hw-toprow{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:12px;
+  }
+  .hw-badge{
+    padding:7px 10px;
+    border-radius:999px;
+    border:1px solid rgba(34,197,94,0.18);
+    background: rgba(34,197,94,0.10);
+    color: rgba(207,255,225,0.92);
+    font-weight:900;
+    font-size:0.82rem;
+    letter-spacing:.01em;
+  }
+  .hw-dot{
+    width:10px;
+    height:10px;
+    border-radius:999px;
+    background: rgba(34,197,94,0.90);
+    box-shadow: 0 0 0 4px rgba(34,197,94,0.15);
+  }
+  .hw-name{
+    font-size:1.15rem;
+    font-weight:950;
+    color: rgba(236,242,239,0.95);
+    letter-spacing:-0.01em;
+    line-height:1.15;
+  }
+  .hw-link{
+    color: rgba(236,242,239,0.95);
+    text-decoration:none;
+  }
+  .hw-link:hover{
+    text-decoration: underline;
+    text-decoration-color: rgba(34,197,94,0.55);
+  }
+  .hw-sub{
+    margin-top:10px;
+    color: rgba(190,201,197,0.72);
+    font-weight:700;
+    font-size:0.9rem;
+  }
+
+  /* States */
+  .state{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:22px; border-radius:18px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border:1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.05);
+    color: var(--ip-text);
+  }
+  .state-title{ font-weight:950; }
+  .state-subtitle{ color: var(--ip-muted); font-weight:650; font-size:0.92rem; margin-top:2px; }
+
+  .empty{ display:grid; place-items:center; padding:14px 0; }
+  .empty-card{
+    width:min(720px, 100%);
+    text-align:center;
+    padding:26px 18px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border:1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 28px 90px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06);
+    color: var(--ip-text);
+  }
+  .empty-icon{ font-size:2.2rem; margin-bottom:10px; }
+  .empty-card h2{ margin:0; color: var(--ip-text); font-weight:950; letter-spacing:-0.02em; }
+  .empty-card p{ margin:10px 0 18px; color: var(--ip-muted); font-weight:650; }
+
+  .subempty{
+    padding:16px;
+    border-radius:18px;
+    border:1px dashed rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.03);
+  }
+  .subempty-title{ font-weight:950; color: rgba(236,242,239,0.92); }
+  .subempty-sub{ margin-top:4px; color: rgba(190,201,197,0.74); font-weight:650; }
+  .subempty-actions{ margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
+  .btn-new-unit{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+
+  padding:.55rem .9rem;
+
+  background: rgba(134,239,172,0.12);
+  border:2px solid var(--primary);
+  border-radius:.8rem;
+
+  color:var(--white);
+  font-weight:600;
+  font-size:.9rem;
+
+  text-decoration:none;
+
+  transition:all .2s ease;
+}
+
+.btn-new-unit:hover{
+  background: rgba(134,239,172,0.22);
+  transform: translateY(-2px);
+  box-shadow:0 6px 18px rgba(134,239,172,0.25);
+}
+</style>

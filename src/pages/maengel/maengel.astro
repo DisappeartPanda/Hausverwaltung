@@ -1,0 +1,158 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Mängel">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Mängelverwaltung</h1>
+    <a href="/maengel/neu" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
+      + Mangel melden
+    </a>
+  </div>
+  
+  <!-- Filter -->
+  <div class="flex gap-4 mb-6">
+    <select id="status-filter" class="px-4 py-2 border rounded-md bg-white">
+      <option value="">Alle Status</option>
+      <option value="offen">Offen</option>
+      <option value="in_pruefung">In Prüfung</option>
+      <option value="behoben">Behoben</option>
+    </select>
+    <label class="flex items-center gap-2">
+      <input type="checkbox" id="dringend-filter" class="rounded" />
+      <span class="text-sm">Nur dringend</span>
+    </label>
+  </div>
+  
+  <div id="loading" class="text-center py-8">Laden...</div>
+  
+  <div id="maengel-liste" class="space-y-4 hidden">
+    <!-- Wird via JS gefüllt -->
+  </div>
+  
+  <div id="keine-maengel" class="hidden text-center py-8 text-gray-500 bg-white rounded-lg shadow">
+    Keine Mängel vorhanden.
+  </div>
+</DashboardLayout>
+
+<script>
+  import { supabase } from '../lib/supabase';
+  
+  let alleMaengel: any[] = [];
+  
+  const loadMaengel = async () => {
+    const { data: maengel } = await supabase
+      .from('view_offene_maengel')
+      .select('*')
+      .order('dringend', { ascending: false })
+      .order('gemeldet_am', { ascending: true });
+    
+    alleMaengel = maengel || [];
+    
+    document.getElementById('loading')!.classList.add('hidden');
+    
+    if (alleMaengel.length === 0) {
+      document.getElementById('keine-maengel')!.classList.remove('hidden');
+      return;
+    }
+    
+    renderMaengel(alleMaengel);
+    
+    // Filter-Handler
+    document.getElementById('status-filter')?.addEventListener('change', (e) => {
+      applyFilters();
+    });
+    
+    document.getElementById('dringend-filter')?.addEventListener('change', () => {
+      applyFilters();
+    });
+  };
+  
+const statusBadgeClass = (status) => {
+  switch (status) {
+    case 'offen': return 'badge danger';
+    case 'in_pruefung': return 'badge warning';
+    case 'bestaetigt': return 'badge info';
+    case 'behoben': return 'badge success';
+    default: return 'badge neutral';
+  }
+};
+
+const renderMaengel = (maengel) => {
+  const tbody = document.getElementById('maengel-tbody');
+  const panel = document.getElementById('maengel-panel');
+  const empty = document.getElementById('keine-maengel');
+  const count = document.getElementById('maengel-count');
+
+  tbody.innerHTML = '';
+  count.textContent = `${maengel.length} Einträge`;
+
+  if (!maengel.length) {
+    panel.classList.add('hidden');
+    empty.classList.remove('hidden');
+    empty.textContent = 'Keine Mängel für den aktuellen Filter gefunden.';
+    return;
+  }
+
+  empty.classList.add('hidden');
+  panel.classList.remove('hidden');
+
+  maengel.forEach((m) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div class="cell-title">${m.titel}</div>
+        <div class="cell-sub">${m.beschreibung || '-'}</div>
+      </td>
+      <td>
+        <div>${m.objekt || '-'}</div>
+        <div class="cell-sub">${m.wohneinheit || '-'}</div>
+      </td>
+      <td><span class="${statusBadgeClass(m.status)}">${m.status.replaceAll('_', ' ')}</span></td>
+      <td>${m.dringend ? '<span class="badge danger">Dringend</span>' : '<span class="badge neutral">Normal</span>'}</td>
+      <td>${m.mieter_name || 'Unbekannt'}</td>
+      <td>${new Date(m.gemeldet_am).toLocaleDateString('de-DE')}</td>
+      <td>${m.kategorie || '-'}</td>
+      <td>
+        <div class="row-actions">
+          <a href="/maengel/${m.id}" class="row-link">Bearbeiten</a>
+          ${m.status === 'offen' ? `<button onclick="updateStatus('${m.id}', 'in_pruefung')" class="row-button">In Prüfung</button>` : ''}
+          ${m.status !== 'behoben' ? `<button onclick="updateStatus('${m.id}', 'behoben')" class="row-button">Behoben</button>` : ''}
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+};
+  
+  const applyFilters = () => {
+    const statusFilter = (document.getElementById('status-filter') as HTMLSelectElement).value;
+    const dringendFilter = (document.getElementById('dringend-filter') as HTMLInputElement).checked;
+    
+    let filtered = alleMaengel;
+    
+    if (statusFilter) {
+      filtered = filtered.filter(m => m.status === statusFilter);
+    }
+    
+    if (dringendFilter) {
+      filtered = filtered.filter(m => m.dringend);
+    }
+    
+    renderMaengel(filtered);
+  };
+  
+  // @ts-ignore
+  window.updateStatus = async (id: string, status: string) => {
+    const { error } = await supabase
+      .from('maengel')
+      .update({ status, behoben_am: status === 'behoben' ? new Date().toISOString() : null })
+      .eq('id', id);
+    
+    if (!error) {
+      loadMaengel();
+    }
+  };
+  
+  loadMaengel();
+</script>

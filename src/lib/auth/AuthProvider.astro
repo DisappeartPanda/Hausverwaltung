@@ -1,0 +1,29 @@
+---
+---
+
+<script>
+    import { login, logout } from './auth';
+
+    // Beim Laden prüfen
+    async function checkAuth() {
+        try {
+            const res = await fetch('/api/auth/status');
+            const data = await res.json();
+            
+            if (data.role !== 'guest') {
+                login({
+                    id: data.id,
+                    email: data.email,
+                    role: data.role,
+                    name: data.name
+                });
+            } else {
+                logout();
+            }
+        } catch (e) {
+            logout();
+        }
+    }
+
+    checkAuth();
+</script>

@@ -1,260 +1,899 @@
 ---
+export const prerender = false;
+
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { requireLandlordSession } from '../../lib/supabase/serverAuth';
+
+const { supabase, user } = await requireLandlordSession(Astro);
 
 const { id } = Astro.params;
+if (!id) throw new Error('Keine Wohneinheit-ID in der Route.');
 
-// Demo-Daten
-const wohneinheit = {
-  id: id,
-  bezeichnung: 'Wohnung 1. OG links',
-  objekt: { id: '1', bezeichnung: 'Musterstraße 1', adresse: 'Musterstraße 1, 12345 Berlin' },
-  wohnflaeche_m2: 85,
-  zimmeranzahl: 3,
-  kaltmiete: 850.00,
-  nebenkosten: 150.00,
-  kaution: 2550.00,
-  status: 'vermietet',
-  ausstattung: ['Balkon', 'Einbauküche', 'Keller', 'Parkplatz'],
-  mieter: {
-    name: 'Max Mustermann',
-    einzug: '2023-03-01',
-    telefon: '0176-12345678',
-    email: 'max@example.com',
-    mietvertrag_id: 'mv-001'
-  },
-  mietverlauf: [
-    { von: '2023-03-01', bis: null, mieter: 'Max Mustermann', miete: 850.00 },
-    { von: '2020-01-01', bis: '2023-02-28', mieter: 'Erika Musterfrau', miete: 800.00 }
-  ],
-  zahlungen: [
-    { datum: '2025-02-01', betrag: 1000.00, typ: 'Miete', status: 'eingegangen' },
-    { datum: '2025-01-01', betrag: 1000.00, typ: 'Miete', status: 'eingegangen' },
-    { datum: '2024-12-01', betrag: 1000.00, typ: 'Miete', status: 'eingegangen' }
-  ],
-  maengel: [
-    { id: 1, titel: 'Wasserhahn tropft', status: 'offen', dringend: true, datum: '2025-02-15' }
-  ]
+const uuidRegex =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+if (!uuidRegex.test(id)) throw new Error('Ungültige Wohneinheit-ID.');
+
+type WohneinheitRow = {
+  id: string;
+  objekt_id: string;
+  eigentuemer_id: string | null;
+  bezeichnung: string | null;
+  wohnflaeche_qm: number | null;
+  zimmer_anzahl: number | null;
+  kaltmiete: number | null;
+  nebenkosten_vorauszahlung: number | null;
+  kaution: number | null;
+  verfuegbar_ab: string | null;
+  status: string | null;
+  notizen: string | null;
+  created_at: string | null;
 };
 
-const statusColors = {
-  frei: 'bg-green-100 text-green-800',
-  vermietet: 'bg-blue-100 text-blue-800',
-  reserviert: 'bg-yellow-100 text-yellow-800',
-  renovierung: 'bg-gray-100 text-gray-800'
+type ObjektRow = {
+  id: string;
+  bezeichnung: string | null;
+  adresse: string | null;
+  plz: string | null;
+  stadt: string | null;
 };
+
+type MietvertragRow = {
+  id: string;
+  wohnheinheit_id?: string; // falls typo irgendwo auftaucht (defensiv)
+  wohneinheit_id: string;
+  mieter_id: string;
+  vertragsnummer: string | null;
+  mietbeginn: string | null;
+  mietende: string | null;
+  unbefristet: boolean | null;
+  kaltmiete: number | null;
+  nebenkosten_vorauszahlung: number | null;
+  gesamtmiete: number | null;
+  status: string | null;
+  vertrag_pdf_url: string | null;
+};
+
+type MieterRow = {
+  id: string;
+  profil_id: string | null;
+  wohneinheit_id: string | null;
+  mietvertrag_von: string | null;
+  mietvertrag_bis: string | null;
+  anzahl_bewohner: number | null;
+};
+
+type ProfileRow = {
+  id: string;
+  name: string | null;
+  telefon: string | null;
+  role: string | null;
+};
+
+type ZahlungRow = {
+  id: string;
+  mieter_id: string;
+  typ: string | null;
+  betrag: number | null;
+  zahlungsdatum: string | null;
+  status: string | null;
+  referenz_monat: number | null;
+  referenz_jahr: number | null;
+  zahlungsmethode: string | null;
+  notizen: string | null;
+};
+
+type MaengelRow = {
+  id: string;
+  wohneinheit_id: string | null;
+  titel: string | null;
+  status: string | null;
+  dringend: boolean | null;
+  gemeldet_am: string | null;
+  behoben_am: string | null;
+  ort_im_objekt: string | null;
+  beschreibung: string | null;
+};
+
+const safeText = (v: unknown, fallback = '—') => {
+  const s = String(v ?? '').trim();
+  return s.length ? s : fallback;
+};
+const norm = (v: unknown) => String(v ?? '').trim().toLowerCase();
+const safeNum = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+const fmtEUR = (n: number | null | undefined) =>
+  (safeNum(n) ?? 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+const fmtM2 = (n: number | null | undefined) =>
+  n == null ? '—' : n.toLocaleString('de-DE', { maximumFractionDigits: 2 }) + ' m²';
+const fmtDate = (d: string | null | undefined) =>
+  d ? new Date(d).toLocaleDateString('de-DE') : '—';
+
+const statusPill = (s: string | null | undefined) => {
+  const k = norm(s);
+  if (!k) return { cls: 'pill', text: '—' };
+  if (k.includes('vermietet')) return { cls: 'pill pill-ok', text: 'Vermietet' };
+  if (k.includes('frei')) return { cls: 'pill pill-warn', text: 'Frei' };
+  if (k.includes('reserv')) return { cls: 'pill pill-amber', text: 'Reserviert' };
+  if (k.includes('reno')) return { cls: 'pill pill-dim', text: 'Renovierung' };
+  return { cls: 'pill', text: safeText(s) };
+};
+
+// --------------------------
+// Modular: Loader
+// --------------------------
+async function loadWohneinheit(weId: string) {
+  const { data, error } = await supabase
+    .from('wohneinheiten')
+    .select(
+      'id, objekt_id, eigentuemer_id, bezeichnung, wohnflaeche_qm, zimmer_anzahl, kaltmiete, nebenkosten_vorauszahlung, kaution, verfuegbar_ab, status, notizen, created_at'
+    )
+    .eq('id', weId)
+    .maybeSingle<WohneinheitRow>();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  // Ownership (wie du es überall machst)
+  if (data.eigentuemer_id && data.eigentuemer_id !== user.id) return null;
+
+  return data;
+}
+
+async function loadObjekt(objektId: string) {
+  const { data, error } = await supabase
+    .from('objekte')
+    .select('id, bezeichnung, adresse, plz, stadt')
+    .eq('id', objektId)
+    .maybeSingle<ObjektRow>();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+async function loadAktiverMietvertrag(weId: string) {
+  // Aktiv: mietende IS NULL oder status enthält "aktiv"
+  const { data, error } = await supabase
+    .from('mietvertraege')
+    .select(
+      'id, wohneinheit_id, mieter_id, vertragsnummer, mietbeginn, mietende, unbefristet, kaltmiete, nebenkosten_vorauszahlung, gesamtmiete, status, vertrag_pdf_url'
+    )
+    .eq('wohneinheit_id', weId)
+    .order('mietbeginn', { ascending: false })
+    .limit(1)
+    .maybeSingle<MietvertragRow>();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  // Falls der letzte Vertrag schon beendet ist, aber es gibt noch "aktiv" nicht -> prüfen:
+  if (data.mietende) {
+    const st = norm(data.status);
+    if (!st.includes('aktiv') && !st.includes('lauf')) return null;
+  }
+
+  return data;
+}
+
+async function loadMieterUndProfil(mieterId: string) {
+  const { data: m, error: mErr } = await supabase
+    .from('mieter')
+    .select('id, profil_id, wohneinheit_id, mietvertrag_von, mietvertrag_bis, anzahl_bewohner')
+    .eq('id', mieterId)
+    .maybeSingle<MieterRow>();
+
+  if (mErr) throw mErr;
+  if (!m) return { mieter: null, profil: null };
+
+  let profil: ProfileRow | null = null;
+  if (m.profil_id) {
+    const { data: p, error: pErr } = await supabase
+      .from('profiles')
+      .select('id, name, telefon, role')
+      .eq('id', m.profil_id)
+      .maybeSingle<ProfileRow>();
+
+    if (pErr) throw pErr;
+    profil = p ?? null;
+  }
+
+  return { mieter: m, profil };
+}
+
+async function loadLetzteZahlungen(mieterId: string) {
+  const { data, error } = await supabase
+    .from('zahlungen')
+    .select('id, mieter_id, typ, betrag, zahlungsdatum, status, referenz_monat, referenz_jahr, zahlungsmethode, notizen')
+    .eq('mieter_id', mieterId)
+    .order('zahlungsdatum', { ascending: false })
+    .limit(6)
+    .returns<ZahlungRow[]>();
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function loadOffeneMaengel(weId: string) {
+  const { data, error } = await supabase
+    .from('maengel')
+    .select('id, wohneinheit_id, titel, status, dringend, gemeldet_am, behoben_am, ort_im_objekt, beschreibung')
+    .eq('wohneinheit_id', weId)
+    .order('gemeldet_am', { ascending: false })
+    .limit(8)
+    .returns<MaengelRow[]>();
+
+  if (error) throw error;
+  // offen = status != behoben/geschlossen
+  const open = (data ?? []).filter((m) => {
+    const s = norm(m.status);
+    return !s.includes('behob') && !s.includes('geschloss') && !s.includes('erled');
+  });
+  return open;
+}
+
+// --------------------------
+// Load all
+// --------------------------
+let loadError = false;
+let errorMessage = '';
+
+let wohneinheit: WohneinheitRow | null = null;
+let objekt: ObjektRow | null = null;
+let mietvertrag: MietvertragRow | null = null;
+let mieter: MieterRow | null = null;
+let profil: ProfileRow | null = null;
+let zahlungen: ZahlungRow[] = [];
+let maengel: MaengelRow[] = [];
+
+try {
+  wohneinheit = await loadWohneinheit(id);
+
+  if (wohneinheit) {
+    objekt = await loadObjekt(wohneinheit.objekt_id);
+    mietvertrag = await loadAktiverMietvertrag(wohneinheit.id);
+
+    if (mietvertrag?.mieter_id) {
+      const mp = await loadMieterUndProfil(mietvertrag.mieter_id);
+      mieter = mp.mieter;
+      profil = mp.profil;
+
+      // Zahlungen hängen an mieter_id (laut Screenshot)
+      zahlungen = await loadLetzteZahlungen(mietvertrag.mieter_id);
+    }
+
+    // Mängel hängen an wohneinheit_id (laut Screenshot)
+    maengel = await loadOffeneMaengel(wohneinheit.id);
+  }
+} catch (e: any) {
+  loadError = true;
+  errorMessage = e?.message ?? 'DB Fehler';
+}
+
+const pageTitle = wohneinheit ? safeText(wohneinheit.bezeichnung, 'Wohneinheit') : 'Wohneinheit';
+const addr = objekt
+  ? [objekt.adresse, [objekt.plz, objekt.stadt].filter(Boolean).join(' ')].filter(Boolean).join(', ') || '—'
+  : '—';
+
+const pill = statusPill(wohneinheit?.status);
+
+const cold = safeNum(mietvertrag?.kaltmiete) ?? safeNum(wohneinheit?.kaltmiete) ?? 0;
+const nk = safeNum(mietvertrag?.nebenkosten_vorauszahlung) ?? safeNum(wohneinheit?.nebenkosten_vorauszahlung) ?? 0;
+const totalRent = safeNum(mietvertrag?.gesamtmiete) ?? (cold + nk);
+
+const occupied = Boolean(mietvertrag && (norm(wohneinheit?.status).includes('vermietet') || norm(mietvertrag?.status).includes('aktiv')));
 ---
 
-<DashboardLayout title={wohneinheit.bezeichnung}>
-  <div class="mb-6">
-    <a href="/wohneinheiten" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zur Übersicht</a>
-  </div>
-  
-  <!-- Header -->
-  <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="flex justify-between items-start">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">{wohneinheit.bezeichnung}</h1>
-        <p class="text-gray-600 mt-1">
-          <a href={`/objekte/${wohneinheit.objekt.id}`} class="hover:text-blue-600">
-            {wohneinheit.objekt.bezeichnung}
-          </a>
-        </p>
-        <p class="text-sm text-gray-500">{wohneinheit.objekt.adresse}</p>
-      </div>
-      <span class={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[wohneinheit.status]}`}>
-        {wohneinheit.status}
-      </span>
-    </div>
-    
-    <div class="mt-4 pt-4 border-t grid grid-cols-4 gap-4 text-sm">
-      <div>
-        <span class="text-gray-500">Wohnfläche:</span>
-        <p class="font-medium text-lg">{wohneinheit.wohnflaeche_m2} m²</p>
-      </div>
-      <div>
-        <span class="text-gray-500">Zimmer:</span>
-        <p class="font-medium text-lg">{wohneinheit.zimmeranzahl}</p>
-      </div>
-      <div>
-        <span class="text-gray-500">Kaltmiete:</span>
-        <p class="font-medium text-lg text-green-700">{wohneinheit.kaltmiete.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
-      </div>
-      <div>
-        <span class="text-gray-500">Nebenkosten:</span>
-        <p class="font-medium text-lg">{wohneinheit.nebenkosten.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
-      </div>
-    </div>
-    
-    <div class="mt-4 flex gap-2">
-      {wohneinheit.ausstattung.map(item => (
-        <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">{item}</span>
-      ))}
-    </div>
-  </div>
+<DashboardLayout title={pageTitle}>
+  <section class="page">
+    <div class="topbar">
+      <a class="back" href={objekt?.id ? `/objekte/${objekt.id}` : '/objekte'}>← Zurück zum Objekt</a>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Hauptbereich -->
-    <div class="lg:col-span-2 space-y-6">
-      <!-- Aktueller Mieter -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold">👤 Aktueller Mieter</h2>
-          {wohneinheit.mieter && (
-            <a href={`/mietvertraege/${wohneinheit.mieter.mietvertrag_id}`} class="text-sm text-blue-600 hover:text-blue-800">
-              Mietvertrag anzeigen →
-            </a>
-          )}
-        </div>
-        
-        {wohneinheit.mieter ? (
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <p class="text-sm text-gray-500">Name</p>
-              <p class="font-medium">{wohneinheit.mieter.name}</p>
-            </div>
-            <div>
-              <p class="text-sm text-gray-500">Einzug</p>
-              <p class="font-medium">{new Date(wohneinheit.mieter.einzug).toLocaleDateString('de-DE')}</p>
-            </div>
-            <div>
-              <p class="text-sm text-gray-500">Telefon</p>
-              <a href={`tel:${wohneinheit.mieter.telefon}`} class="font-medium text-blue-600">{wohneinheit.mieter.telefon}</a>
-            </div>
-            <div>
-              <p class="text-sm text-gray-500">E-Mail</p>
-              <a href={`mailto:${wohneinheit.mieter.email}`} class="font-medium text-blue-600">{wohneinheit.mieter.email}</a>
-            </div>
-          </div>
-        ) : (
-          <div class="text-center py-8">
-            <p class="text-gray-500 mb-4">Kein Mieter eingetragen</p>
-            <a href={`/mietvertraege/neu?wohneinheit=${id}`} class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-              + Mietvertrag erstellen
-            </a>
-          </div>
+      <div class="top-actions">
+        <a class="btn" href={`/wohneinheiten/${id}/bearbeiten`}>✏️ Bearbeiten</a>
+        {mietvertrag?.vertrag_pdf_url && (
+          <a class="btn btn-soft" href={mietvertrag.vertrag_pdf_url} target="_blank" rel="noreferrer">📄 Vertrag</a>
         )}
       </div>
+    </div>
 
-      <!-- Letzte Zahlungen -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">💰 Letzte Zahlungen</h2>
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 text-gray-600">
-            <tr>
-              <th class="px-4 py-3 text-left">Datum</th>
-              <th class="px-4 py-3 text-left">Typ</th>
-              <th class="px-4 py-3 text-right">Betrag</th>
-              <th class="px-4 py-3 text-left">Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            {wohneinheit.zahlungen.map(zahlung => (
-              <tr class="hover:bg-gray-50">
-                <td class="px-4 py-3">{new Date(zahlung.datum).toLocaleDateString('de-DE')}</td>
-                <td class="px-4 py-3">{zahlung.typ}</td>
-                <td class="px-4 py-3 text-right font-medium">{zahlung.betrag.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</td>
-                <td class="px-4 py-3">
-                  <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">{zahlung.status}</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div class="mt-4 text-center">
-          <a href={`/zahlungen?wohneinheit=${id}`} class="text-sm text-blue-600 hover:text-blue-800">Alle Zahlungen anzeigen →</a>
+    {loadError && (
+      <div class="state">
+        <div class="state-text">
+          <div class="state-title">Konnte Wohneinheit nicht laden</div>
+          <div class="state-subtitle">{errorMessage}</div>
+        </div>
+        <div class="state-actions">
+          <a class="btn btn-ghost" href={`/wohneinheiten/${id}`}>Neu laden</a>
         </div>
       </div>
+    )}
 
-      <!-- Offene Mängel -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold">⚠️ Offene Mängel</h2>
-          <a href={`/maengel/neu?wohneinheit=${id}`} class="text-sm text-blue-600 hover:text-blue-800">+ Mangel melden</a>
+    {!loadError && !wohneinheit && (
+      <div class="empty">
+        <div class="empty-card">
+          <div class="empty-icon">🏠</div>
+          <h2>Wohneinheit nicht gefunden</h2>
+          <p>Entweder existiert sie nicht oder du hast keinen Zugriff darauf.</p>
+          <a class="btn btn-primary" href="/objekte">Zurück</a>
         </div>
-        {wohneinheit.maengel.length > 0 ? (
-          <div class="space-y-3">
-            {wohneinheit.maengel.map(mangel => (
-              <a href={`/maengel/${mangel.id}`} class="block p-4 border-l-4 border-red-500 bg-red-50 rounded-lg hover:bg-red-100">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <p class="font-medium">{mangel.titel}</p>
-                    <p class="text-sm text-gray-600">Gemeldet: {new Date(mangel.datum).toLocaleDateString('de-DE')}</p>
-                  </div>
-                  {mangel.dringend && <span class="px-2 py-1 bg-red-600 text-white rounded text-xs">DRINGEND</span>}
+      </div>
+    )}
+
+    {!loadError && wohneinheit && (
+      <>
+        <!-- HERO -->
+        <header class="hero">
+          <div class="hero-top">
+            <div class="hero-left">
+              <h1 class="title">{safeText(wohneinheit.bezeichnung, 'Wohneinheit')}</h1>
+
+              <div class="hero-meta">
+                <div class="meta-row">
+                  <span class="meta-label">Objekt</span>
+                  <a class="meta-link" href={objekt?.id ? `/objekte/${objekt.id}` : '/objekte'}>
+                    {safeText(objekt?.bezeichnung, '—')}
+                  </a>
                 </div>
-              </a>
-            ))}
-          </div>
-        ) : (
-          <p class="text-gray-500">Keine offenen Mängel 🎉</p>
-        )}
-      </div>
-    </div>
 
-    <!-- Sidebar -->
-    <div class="space-y-6">
-      <!-- Schnellaktionen -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">Aktionen</h2>
-        <div class="space-y-2">
-          <a href={`/wohneinheiten/${id}/bearbeiten`} class="block w-full px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm text-center">
-            ✏️ Bearbeiten
-          </a>
-          <a href={`/nebenkosten/neu?wohneinheit=${id}`} class="block w-full px-4 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm text-center">
-            📋 Nebenkostenabrechnung
-          </a>
-          <button onclick="miet erhoehung()" class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm">
-            📈 Mieterhöhung vorschlagen
-          </button>
-        </div>
-      </div>
-
-      <!-- Kaution -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">💶 Kaution</h2>
-        <div class="text-center">
-          <p class="text-3xl font-bold text-gray-900">{wohneinheit.kaution.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}</p>
-          <p class="text-sm text-gray-500 mt-1">(3 Monatsmieten)</p>
-        </div>
-        <div class="mt-4 pt-4 border-t">
-          <p class="text-sm text-gray-600">Status: <span class="text-green-600 font-medium">Hinterlegt</span></p>
-          <p class="text-xs text-gray-500 mt-1">Konto: Mietkautionskonto Sparkasse</p>
-        </div>
-      </div>
-
-      <!-- Mietverlauf -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">📜 Mietverlauf</h2>
-        <div class="space-y-3">
-          {wohneinheit.mietverlauf.map((eintrag, index) => (
-            <div class={`p-3 rounded-lg ${index === 0 ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
-              <p class="font-medium text-sm">{eintrag.mieter}</p>
-              <p class="text-xs text-gray-600">
-                {new Date(eintrag.von).toLocaleDateString('de-DE')} - 
-                {eintrag.bis ? new Date(eintrag.bis).toLocaleDateString('de-DE') : 'heute'}
-              </p>
-              <p class="text-xs text-gray-500 mt-1">{eintrag.miete.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})} Kaltmiete</p>
+                <div class="meta-row">
+                  <span class="meta-label">Adresse</span>
+                  <span class="meta-value address">
+                    <span>{safeText(objekt?.adresse, '—')}</span>
+                    <span>{[objekt?.plz, objekt?.stadt].filter(Boolean).join(' ') || '—'}</span>
+                  </span>
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <!-- Dokumente -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold mb-4">📁 Dokumente</h2>
-        <div class="space-y-2 text-sm">
-          <a href="#" class="block p-2 hover:bg-gray-50 rounded text-blue-600">📄 Übergabeprotokoll 2023</a>
-          <a href="#" class="block p-2 hover:bg-gray-50 rounded text-blue-600">📄 Mietvertrag aktuell</a>
-          <a href="#" class="block p-2 hover:bg-gray-50 rounded text-blue-600">📄 Schönheitsreparaturen</a>
+            <div class="hero-right">
+              <span class={pill.cls}>{pill.text}</span>
+
+              <div class="statline">
+                <span class={`badge ${occupied ? '' : 'badge-dim'}`}>
+                  {occupied ? 'Vermietet' : 'Frei'}
+                </span>
+                <span class={`badge ${maengel.length ? 'badge-warn' : 'badge-ok'}`}>
+                  {maengel.length ? `${maengel.length} Mängel offen` : 'Keine offenen Mängel'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="kpis" aria-label="Stammdaten">
+            <article class="kpi kpi-accent">
+              <div class="kpi-top">
+                <div class="kpi-icon">📐</div>
+                <div class="kpi-label">Wohnfläche</div>
+              </div>
+              <div class="kpi-value">{fmtM2(wohneinheit.wohnflaeche_qm)}</div>
+              <div class="kpi-hint">Einheit</div>
+            </article>
+
+            <article class="kpi">
+              <div class="kpi-top">
+                <div class="kpi-icon">🚪</div>
+                <div class="kpi-label">Zimmer</div>
+              </div>
+              <div class="kpi-value">{wohneinheit.zimmer_anzahl ?? '—'}</div>
+              <div class="kpi-hint">Anzahl</div>
+            </article>
+
+            <article class="kpi">
+              <div class="kpi-top">
+                <div class="kpi-icon">💶</div>
+                <div class="kpi-label">Kaltmiete</div>
+              </div>
+              <div class="kpi-value">{fmtEUR(cold)}</div>
+              <div class="kpi-hint">Monat</div>
+            </article>
+
+            <article class="kpi">
+              <div class="kpi-top">
+                <div class="kpi-icon">🧾</div>
+                <div class="kpi-label">Gesamt</div>
+              </div>
+              <div class="kpi-value">{fmtEUR(totalRent)}</div>
+              <div class="kpi-hint">Kalt + NK</div>
+            </article>
+          </div>
+
+          {wohneinheit.notizen && (
+            <div class="note">
+              <div class="note-title">Notizen</div>
+              <div class="note-text">{wohneinheit.notizen}</div>
+            </div>
+          )}
+        </header>
+
+        <div class="layout">
+          <!-- MAIN -->
+          <div class="main">
+            <!-- MIETER -->
+            <section class="panel">
+              <div class="panel-head">
+                <h2>👤 Aktueller Mieter</h2>
+                {mietvertrag?.id ? (
+                  <a class="link" href={`/mietvertraege/${mietvertrag.id}`}>Mietvertrag →</a>
+                ) : (
+                  <a class="link" href={`/mietvertraege/neu?wohneinheit=${id}`}>+ Vertrag anlegen</a>
+                )}
+              </div>
+
+              {mietvertrag && mieter ? (
+                <div class="info-grid">
+                  <div>
+                    <div class="muted">Name</div>
+                    <div class="strong">{safeText(profil?.name, '—')}</div>
+                  </div>
+
+                  <div>
+                    <div class="muted">Mietbeginn</div>
+                    <div class="strong">{fmtDate(mietvertrag.mietbeginn)}</div>
+                  </div>
+
+                  <div>
+                    <div class="muted">Telefon</div>
+                    {profil?.telefon ? (
+                      <a class="link" href={`tel:${profil.telefon}`}>{profil.telefon}</a>
+                    ) : (
+                      <div class="strong">—</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div class="muted">Bewohner</div>
+                    <div class="strong">{mieter.anzahl_bewohner ?? '—'}</div>
+                  </div>
+
+                  <div class="span2">
+                    <div class="muted">Vertragsstatus</div>
+                    <div class="strong">
+                      {safeText(mietvertrag.status, mietvertrag.mietende ? 'Beendet' : 'Aktiv')}
+                      {mietvertrag.unbefristet ? ' · unbefristet' : ''}
+                      {mietvertrag.mietende ? ` · Ende: ${fmtDate(mietvertrag.mietende)}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div class="empty-inline">
+                  <div class="muted">Kein aktiver Mietvertrag / Mieter verknüpft.</div>
+                  <div class="inline-actions">
+                    <a class="btn btn-primary" href={`/mietvertraege/neu?wohneinheit=${id}`}>+ Mietvertrag erstellen</a>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <!-- ZAHLUNGEN -->
+            <section class="panel">
+              <div class="panel-head">
+                <h2>💰 Letzte Zahlungen</h2>
+                <a class="link" href="/zahlungen">Alle →</a>
+              </div>
+
+              {zahlungen.length > 0 ? (
+                <div class="table-wrap">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Datum</th>
+                        <th>Typ</th>
+                        <th>Referenz</th>
+                        <th class="right">Betrag</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {zahlungen.map((z) => {
+                        const ref =
+                          z.referenz_monat && z.referenz_jahr
+                            ? `${String(z.referenz_monat).padStart(2, '0')}/${z.referenz_jahr}`
+                            : '—';
+
+                        const st = norm(z.status);
+                        const cls =
+                          st.includes('eing') || st.includes('bez') ? 'tag tag-ok'
+                          : st.includes('off') ? 'tag tag-warn'
+                          : 'tag';
+
+                        return (
+                          <tr>
+                            <td>{fmtDate(z.zahlungsdatum)}</td>
+                            <td>{safeText(z.typ, '—')}</td>
+                            <td class="muted">{ref}</td>
+                            <td class="right strong">{fmtEUR(z.betrag)}</td>
+                            <td><span class={cls}>{safeText(z.status, '—')}</span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div class="muted">Keine Zahlungen gefunden (Zahlungen hängen bei dir an <code>mieter_id</code>).</div>
+              )}
+            </section>
+
+            <!-- MÄNGEL -->
+            <section class="panel">
+              <div class="panel-head">
+                <h2>⚠️ Offene Mängel</h2>
+                <a class="link" href={`/maengel/neu?wohneinheit=${id}`}>+ Mangel melden</a>
+              </div>
+
+              {maengel.length > 0 ? (
+                <div class="cards">
+                  {maengel.map((m) => (
+                    <a class={`mcard ${m.dringend ? 'mcard-hot' : ''}`} href={`/maengel/${m.id}`}>
+                      <div class="mcard-top">
+                        <div class="mcard-title">{safeText(m.titel, 'Mangel')}</div>
+                        {m.dringend ? <span class="tag tag-hot">DRINGEND</span> : <span class="tag">{safeText(m.status, '—')}</span>}
+                      </div>
+                      <div class="mcard-sub">
+                        <span>{m.ort_im_objekt ? `📍 ${m.ort_im_objekt}` : '📍 —'}</span>
+                        <span>{m.gemeldet_am ? `🗓️ ${fmtDate(m.gemeldet_am)}` : ''}</span>
+                      </div>
+                      {m.beschreibung ? <div class="mcard-desc">{m.beschreibung}</div> : null}
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div class="muted">Keine offenen Mängel 🎉</div>
+              )}
+            </section>
+          </div>
+
+          <!-- SIDE -->
+          <aside class="side">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Aktionen</h2>
+              </div>
+              <div class="actions">
+                <a class="btn btn-soft" href={`/wohneinheiten/${id}/bearbeiten`}>✏️ Bearbeiten</a>
+                <a class="btn btn-soft" href={`/mietvertraege/neu?wohneinheit=${id}`}>📄 Mietvertrag</a>
+                <button class="btn btn-soft" type="button" id="btnRaise">📈 Mieterhöhung vorschlagen</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>🧠 Quick Facts</h2>
+              </div>
+
+              <div class="facts">
+                <div class="fact">
+                  <div class="muted">Nebenkosten (VZ)</div>
+                  <div class="strong">{fmtEUR(nk)}</div>
+                </div>
+                <div class="fact">
+                  <div class="muted">Kaution</div>
+                  <div class="strong">{fmtEUR(wohneinheit.kaution)}</div>
+                </div>
+                <div class="fact">
+                  <div class="muted">Verfügbar ab</div>
+                  <div class="strong">{fmtDate(wohneinheit.verfuegbar_ab)}</div>
+                </div>
+                <div class="fact">
+                  <div class="muted">Erstellt</div>
+                  <div class="strong">{fmtDate(wohneinheit.created_at)}</div>
+                </div>
+              </div>
+            </section>
+          </aside>
         </div>
-      </div>
-    </div>
-  </div>
+      </>
+    )}
+  </section>
+
+  {/* ✅ Werte für Browser */}
+  <html data-kaltmiete={String(cold)} />
 </DashboardLayout>
 
 <script>
-  function mieterhoehung() {
-    const neueMiete = wohneinheit.kaltmiete * 1.03; // 3% Erhöhung
+  const KALTMIETE = Number(document.documentElement.dataset.kaltmiete || '0');
+
+  const btn = document.getElementById('btnRaise');
+  btn?.addEventListener('click', () => {
+    const neueMiete = KALTMIETE * 1.03;
     alert(`Vorschlag: Neue Kaltmiete ${neueMiete.toLocaleString('de-DE', {style: 'currency', currency: 'EUR'})}`);
-  }
+  });
 </script>
+
+<style>
+  :global(:root) {
+    --ip-card: rgba(16, 22, 19, 0.72);
+    --ip-card-2: rgba(12, 17, 14, 0.72);
+    --ip-border: rgba(255,255,255,0.10);
+    --ip-text: rgba(236, 242, 239, 0.92);
+    --ip-muted: rgba(190, 201, 197, 0.74);
+    --ip-accent: #22c55e;
+    --ip-shadow: 0 24px 70px rgba(0,0,0,0.45);
+  }
+
+  .page { display:flex; flex-direction:column; gap:16px; }
+
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .back{ color: rgba(190,201,197,0.85); text-decoration:none; font-weight:850; }
+  .back:hover{ color: rgba(236,242,239,0.92); }
+
+  .top-actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    padding:10px 14px; border-radius:12px;
+    border:1px solid var(--ip-border);
+    background: rgba(255,255,255,0.06);
+    color:var(--ip-text); text-decoration:none;
+    font-weight:900; font-size:0.95rem;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+    cursor:pointer;
+  }
+  .btn:hover{ transform:translateY(-1px); background:rgba(255,255,255,0.08); box-shadow:0 18px 50px rgba(0,0,0,0.35); }
+  .btn-soft{ width:100%; background: rgba(255,255,255,0.05); }
+  .btn-ghost{ background: rgba(255,255,255,0.04); }
+  .btn-primary{
+    border-color: rgba(34, 197, 94, 0.35);
+    background: linear-gradient(180deg, rgba(34,197,94,0.18), rgba(34,197,94,0.08));
+    box-shadow: 0 18px 60px rgba(34,197,94,0.12);
+  }
+  .btn-primary:hover{
+    border-color: rgba(34, 197, 94, 0.55);
+    box-shadow: 0 22px 70px rgba(34,197,94,0.16);
+  }
+
+  .hero{
+    padding:16px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .hero-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .title{ margin:0; font-size:1.65rem; font-weight:950; letter-spacing:-0.02em; color:var(--ip-text); }
+  .hero-meta{ margin-top:10px; display:grid; gap:8px; }
+  .meta-row{ display:flex; gap:10px; align-items:flex-start; }
+  .meta-label{ width:74px; color: rgba(190,201,197,0.70); font-weight:850; }
+  .meta-value{ color: rgba(236,242,239,0.90); font-weight:750; }
+  .meta-link{ color: rgba(200,255,224,0.95); text-decoration:none; font-weight:900; }
+  .meta-link:hover{ text-decoration: underline; text-decoration-color: rgba(34,197,94,0.55); }
+
+  .address{ display:grid; gap:2px; }
+
+  .hero-right{ display:flex; flex-direction:column; gap:10px; align-items:flex-end; }
+
+  .pill{
+    padding:7px 10px; border-radius:999px;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.06);
+    color: rgba(236,242,239,0.88);
+    font-weight:900; font-size:0.86rem;
+    white-space:nowrap;
+  }
+  .pill-ok{ border-color: rgba(34,197,94,0.18); background: rgba(34,197,94,0.10); color: rgba(207,255,225,0.92); }
+  .pill-warn{ border-color: rgba(250,204,21,0.22); background: rgba(250,204,21,0.10); color: rgba(255,244,204,0.92); }
+  .pill-amber{ border-color: rgba(245,158,11,0.22); background: rgba(245,158,11,0.10); color: rgba(255,233,204,0.92); }
+  .pill-dim{ border-color: rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); color: rgba(190,201,197,0.78); }
+
+  .statline{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .badge{
+    padding:7px 10px; border-radius:999px;
+    border:1px solid rgba(34,197,94,0.22);
+    background: rgba(34,197,94,0.10);
+    color: rgba(207,255,225,0.92);
+    font-weight:900; font-size:0.85rem;
+  }
+  .badge-dim{
+    border-color: rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    color: rgba(190,201,197,0.80);
+  }
+  .badge-warn{
+    border-color: rgba(250,204,21,0.18);
+    background: rgba(250,204,21,0.10);
+    color: rgba(255,244,204,0.92);
+  }
+  .badge-ok{
+    border-color: rgba(34,197,94,0.18);
+    background: rgba(34,197,94,0.10);
+    color: rgba(207,255,225,0.92);
+  }
+
+  .kpis{
+    margin-top:14px;
+    display:grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 14px;
+  }
+  @media (max-width: 1100px){ .kpis{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px){ .kpis{ grid-template-columns: 1fr; } }
+
+  .kpi{
+    padding: 14px 14px 12px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::after{
+    content:'';
+    position:absolute;
+    inset:-90px -70px auto auto;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(34,197,94,0.16), transparent 60%);
+    filter: blur(2px);
+    pointer-events:none;
+  }
+  .kpi-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .kpi-icon{
+    width: 38px; height: 38px;
+    border-radius: 14px;
+    display:grid; place-items:center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    font-size: 18px;
+  }
+  .kpi-label{ color: rgba(190,201,197,0.80); font-weight: 850; letter-spacing: .02em; }
+  .kpi-value{ margin-top: 10px; font-size: 1.35rem; font-weight: 950; color: rgba(236,242,239,0.95); }
+  .kpi-hint{ margin-top: 2px; color: rgba(190,201,197,0.70); font-weight: 650; font-size: 0.9rem; }
+  .kpi-accent{
+    border-color: rgba(34,197,94,0.22);
+    box-shadow: 0 26px 90px rgba(0,0,0,0.35), 0 0 0 1px rgba(34,197,94,0.10) inset;
+  }
+  .kpi-accent::after{ background: radial-gradient(circle, rgba(34,197,94,0.22), transparent 60%); }
+
+  .note{
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px solid rgba(255,255,255,0.08);
+  }
+  .note-title{ color: rgba(190,201,197,0.78); font-weight:900; }
+  .note-text{ margin-top:6px; color: rgba(236,242,239,0.90); font-weight:650; line-height:1.45; }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 1.25fr 0.75fr;
+    gap:16px;
+    align-items:start;
+  }
+  @media (max-width: 1100px){ .layout{ grid-template-columns: 1fr; } }
+
+  .main{ display:flex; flex-direction:column; gap:16px; }
+  .side{ display:flex; flex-direction:column; gap:16px; }
+
+  .panel{
+    padding:16px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom: 12px;
+  }
+  .panel-head h2{ margin:0; color: var(--ip-text); font-weight:950; letter-spacing:-0.01em; font-size:1.05rem; }
+
+  .link{ color: rgba(200,255,224,0.95); text-decoration:none; font-weight:900; }
+  .link:hover{ text-decoration: underline; text-decoration-color: rgba(34,197,94,0.55); }
+
+  .muted{ color: var(--ip-muted); font-weight:650; }
+  .strong{ color: rgba(236,242,239,0.92); font-weight:900; }
+
+  .info-grid{
+    display:grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap:12px;
+  }
+  .span2{ grid-column: span 2; }
+  @media (max-width: 700px){ .info-grid{ grid-template-columns: 1fr; } .span2{ grid-column: auto; } }
+
+  .empty-inline{ display:flex; flex-direction:column; gap:12px; padding:10px 0; }
+  .inline-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+
+  .table-wrap{
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:16px;
+    overflow:hidden;
+  }
+  .table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:0.92rem;
+  }
+  .table thead th{
+    text-align:left;
+    padding:10px 12px;
+    color: rgba(190,201,197,0.78);
+    font-weight:900;
+    background: rgba(255,255,255,0.04);
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .table tbody td{
+    padding:10px 12px;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    color: rgba(236,242,239,0.90);
+    font-weight:650;
+  }
+  .table tbody tr:hover td{ background: rgba(255,255,255,0.03); }
+  .right{ text-align:right; }
+
+  .tag{
+    padding:6px 10px; border-radius:999px;
+    font-size:0.80rem; font-weight:900;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.06);
+    color: rgba(236,242,239,0.88);
+    white-space:nowrap;
+  }
+  .tag-ok{ border-color: rgba(34,197,94,0.18); background: rgba(34,197,94,0.10); color: rgba(207,255,225,0.92); }
+  .tag-warn{ border-color: rgba(250,204,21,0.20); background: rgba(250,204,21,0.10); color: rgba(255,244,204,0.92); }
+  .tag-hot{ border-color: rgba(239,68,68,0.22); background: rgba(239,68,68,0.12); color: rgba(255,220,220,0.95); }
+
+  .cards{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
+  @media (max-width: 900px){ .cards{ grid-template-columns: 1fr; } }
+
+  .mcard{
+    display:block;
+    text-decoration:none;
+    padding:14px;
+    border-radius:18px;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  }
+  .mcard:hover{
+    transform: translateY(-2px);
+    border-color: rgba(34,197,94,0.18);
+    background: rgba(255,255,255,0.06);
+  }
+  .mcard-hot{
+    border-color: rgba(239,68,68,0.18);
+  }
+  .mcard-top{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+  .mcard-title{ color: rgba(236,242,239,0.92); font-weight:950; }
+  .mcard-sub{ margin-top:8px; display:flex; gap:10px; flex-wrap:wrap; color: rgba(190,201,197,0.78); font-weight:650; font-size:0.9rem; }
+  .mcard-desc{ margin-top:10px; color: rgba(190,201,197,0.78); font-weight:650; line-height:1.4; }
+
+  .actions{ display:flex; flex-direction:column; gap:10px; }
+
+  .facts{ display:grid; gap:10px; }
+  .fact{
+    padding:12px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .state{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:22px; border-radius:18px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border:1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.05);
+    color: var(--ip-text);
+  }
+  .state-title{ font-weight:950; }
+  .state-subtitle{ color: var(--ip-muted); font-weight:650; font-size:0.92rem; margin-top:2px; }
+
+  .empty{ display:grid; place-items:center; padding:14px 0; }
+  .empty-card{
+    width:min(720px, 100%);
+    text-align:center;
+    padding:26px 18px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border:1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 28px 90px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06);
+    color: var(--ip-text);
+  }
+  .empty-icon{ font-size:2.2rem; margin-bottom:10px; }
+  .empty-card h2{ margin:0; color: var(--ip-text); font-weight:950; letter-spacing:-0.02em; }
+  .empty-card p{ margin:10px 0 18px; color: var(--ip-muted); font-weight:650; }
+</style>

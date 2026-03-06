@@ -1,140 +1,299 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+export const prerender = false;
 ---
 
 <DashboardLayout title="Neues Objekt">
-  <div class="mb-6">
-    <a href="/objekte" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zu Objekten</a>
-  </div>
-  
-  <h1 class="text-2xl font-bold mb-6">Neues Objekt anlegen</h1>
-  
-  <form id="objekt-form" class="max-w-2xl bg-white rounded-lg shadow p-6 space-y-6">
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Bezeichnung *</label>
-      <input name="bezeichnung" type="text" required placeholder="z.B. Wohnanlage Hauptstraße"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
-    </div>
-    
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Straße *</label>
-        <input name="strasse" type="text" required
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+  <section class="page">
+    <header class="header">
+      <div class="header-left">
+        <a class="back" href="/objekte">← Zurück zu Objekten</a>
+        <h1 class="title">Neues Objekt</h1>
+        <p class="subtitle">Lege ein Objekt an – du kannst Details später jederzeit ergänzen.</p>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Hausnummer</label>
-        <input name="hausnummer" type="text"
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+    </header>
+
+    <form id="objekt-form" class="card" novalidate>
+      <div class="grid">
+        <div class="field field-wide">
+          <label for="bezeichnung">Bezeichnung <span class="req">*</span></label>
+          <input id="bezeichnung" name="bezeichnung" type="text" required placeholder="z.B. Wohnanlage Hauptstraße" />
+          <p class="hint">So wird das Objekt in Listen und Dokumenten angezeigt.</p>
+        </div>
+
+        <div class="field">
+          <label for="strasse">Straße <span class="req">*</span></label>
+          <input id="strasse" name="strasse" type="text" required placeholder="z.B. Hauptstraße" />
+        </div>
+
+        <div class="field">
+          <label for="hausnummer">Hausnummer</label>
+          <input id="hausnummer" name="hausnummer" type="text" placeholder="z.B. 12A" />
+        </div>
+
+        <div class="field">
+          <label for="plz">PLZ <span class="req">*</span></label>
+          <input id="plz" name="plz" inputmode="numeric" pattern="[0-9]{5}" required placeholder="z.B. 10115" />
+          <p class="hint">5-stellig (DE). (Pattern kannst du für AT/CH anpassen.)</p>
+        </div>
+
+        <div class="field">
+          <label for="stadt">Stadt <span class="req">*</span></label>
+          <input id="stadt" name="stadt" type="text" required placeholder="z.B. Berlin" />
+        </div>
+
+        <div class="field">
+          <label for="objekt_typ">Objekttyp</label>
+          <select id="objekt_typ" name="objekt_typ">
+            <option value="wohnhaus">Wohnhaus</option>
+            <option value="mehrfamilienhaus">Mehrfamilienhaus</option>
+            <option value="einfamilienhaus">Einfamilienhaus</option>
+            <option value="gewerbe">Gewerbe</option>
+            <option value="mischobjekt">Mischobjekt</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="baujahr">Baujahr</label>
+          <input id="baujahr" name="baujahr" type="number" min="1800" max="2099" placeholder="z.B. 1990" />
+        </div>
+
+        <div class="field field-wide">
+          <label for="wohnflaeche_gesamt">Gesamtwohnfläche (m²)</label>
+          <input id="wohnflaeche_gesamt" name="wohnflaeche_gesamt" type="number" step="0.01" placeholder="0.00" />
+        </div>
+
+        <div class="field field-wide">
+          <label for="notizen">Notizen</label>
+          <textarea id="notizen" name="notizen" rows="4" placeholder="Optional…"></textarea>
+        </div>
       </div>
-    </div>
-    
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">PLZ *</label>
-        <input name="plz" type="text" required
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+
+      <div id="error-message" class="error hidden" role="alert" aria-live="polite"></div>
+
+      <div class="actions">
+        <button id="submitBtn" type="submit" class="btn btn-primary">
+          <span class="btn-icon">✓</span>
+          Speichern
+        </button>
+        <a class="btn btn-ghost" href="/objekte">Abbrechen</a>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Stadt *</label>
-        <input name="stadt" type="text" required
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-      </div>
-    </div>
-    
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Objekttyp</label>
-        <select name="objekt_typ" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-          <option value="wohnhaus">Wohnhaus</option>
-          <option value="mehrfamilienhaus">Mehrfamilienhaus</option>
-          <option value="einfamilienhaus">Einfamilienhaus</option>
-          <option value="gewerbe">Gewerbe</option>
-          <option value="mischobjekt">Mischobjekt</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Baujahr</label>
-        <input name="baujahr" type="number" min="1800" max="2099" placeholder="z.B. 1990"
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-      </div>
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Gesamtwohnfläche (m²)</label>
-      <input name="wohnflaeche_gesamt" type="number" step="0.01" placeholder="0.00"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Notizen</label>
-      <textarea name="notizen" rows="3"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
-    </div>
-    
-    <div class="flex gap-4 pt-4">
-      <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-        Speichern
-      </button>
-      <a href="/objekte" class="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
-        Abbrechen
-      </a>
-    </div>
-    
-    <div id="error-message" class="hidden p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm"></div>
-  </form>
+    </form>
+  </section>
 </DashboardLayout>
 
-<script>
+<script type="module">
   import { supabase } from '../../lib/supabase';
-  
-  const form = document.getElementById('objekt-form');
-  const errorMsg = document.getElementById('error-message');
-  
+
+  const form = document.getElementById('settingsForm');
+  const toast = document.getElementById('toast');
+  const error = document.getElementById('error');
+  const saveBtn = document.getElementById('saveBtn');
+  const pill = document.getElementById('modePill');
+
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 1400);
+  };
+
+  const showError = (msg) => {
+    error.textContent = msg;
+    error.classList.remove('hidden');
+  };
+
+  const clearError = () => {
+    error.textContent = '';
+    error.classList.add('hidden');
+  };
+
+  const labelFor = (mode) => {
+    if (mode === 'auto') return 'Automatisch';
+    if (mode === 'finance') return 'Finanzen';
+    if (mode === 'management') return 'Verwaltung';
+    return 'Hybrid';
+  };
+
+  const updatePill = (mode) => {
+    pill.textContent = labelFor(mode);
+    pill.dataset.mode = mode;
+  };
+
+  const updateActive = (mode) => {
+    document.querySelectorAll('.opt').forEach((el) => {
+      const input = el.querySelector('input[type="radio"]');
+      el.classList.toggle('opt-active', input?.value === mode);
+    });
+  };
+
+  form?.addEventListener('change', () => {
+    const checked = form.querySelector('input[name="dashboard_mode"]:checked');
+    const mode = checked ? checked.value : 'auto';
+    updatePill(mode);
+    updateActive(mode);
+  });
+
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    errorMsg!.classList.add('hidden');
-    
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = '/login';
-      return;
-    }
-    
-    const { data: vermieter } = await supabase
-      .from('vermieter')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single();
-    
-    if (!vermieter) {
-      errorMsg!.textContent = 'Fehler: Vermieter nicht gefunden';
-      errorMsg!.classList.remove('hidden');
-      return;
-    }
-    
-    const formData = new FormData(e.target as HTMLFormElement);
-    
-    const { error } = await supabase
-      .from('objekte')
-      .insert({
-        vermieter_id: vermieter.id,
-        bezeichnung: formData.get('bezeichnung'),
-        strasse: formData.get('strasse'),
-        hausnummer: formData.get('hausnummer') || null,
-        plz: formData.get('plz'),
-        stadt: formData.get('stadt'),
-        objekt_typ: formData.get('objekt_typ'),
-        baujahr: formData.get('baujahr') ? parseInt(formData.get('baujahr') as string) : null,
-        wohnflaeche_gesamt: formData.get('wohnflaeche_gesamt') ? parseFloat(formData.get('wohnflaeche_gesamt') as string) : null,
-        notizen: formData.get('notizen') || null,
-      });
-    
-    if (error) {
-      errorMsg!.textContent = 'Fehler: ' + error.message;
-      errorMsg!.classList.remove('hidden');
-    } else {
-      window.location.href = '/objekte';
+    clearError();
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Speichere…';
+
+    try {
+      const { data: { session }, error: sErr } = await supabase.auth.getSession();
+      if (sErr) throw sErr;
+      if (!session) {
+        window.location.href = '/login';
+        return;
+      }
+
+      const checked = form.querySelector('input[name="dashboard_mode"]:checked');
+      const mode = checked ? checked.value : 'auto';
+
+      const dashboard_mode = mode === 'auto' ? null : mode;
+
+      const { error: upErr } = await supabase
+        .from('profile_settings')
+        .upsert(
+          { user_id: session.user.id, dashboard_mode, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+
+      if (upErr) throw upErr;
+
+      showToast('Gespeichert ✓');
+      updatePill(mode);
+      updateActive(mode);
+    } catch (err) {
+      showError('Fehler: ' + (err?.message ?? String(err)));
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Speichern';
     }
   });
 </script>
+
+<style>
+  :global(:root) {
+    --ip-card: rgba(16, 22, 19, 0.72);
+    --ip-card-2: rgba(12, 17, 14, 0.72);
+    --ip-border: rgba(255,255,255,0.10);
+    --ip-text: rgba(236, 242, 239, 0.92);
+    --ip-muted: rgba(190, 201, 197, 0.74);
+    --ip-accent: #22c55e;
+    --ip-shadow: 0 24px 70px rgba(0,0,0,0.45);
+  }
+
+  .page { display:flex; flex-direction:column; gap:16px; }
+  .header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+  .header-left { display:flex; flex-direction:column; gap:8px; }
+  .back { color: rgba(190,201,197,0.85); text-decoration:none; font-weight:850; }
+  .back:hover { color: rgba(236,242,239,0.92); }
+
+  .title { margin:0; font-size:1.65rem; font-weight:950; letter-spacing:-0.02em; color:var(--ip-text); }
+  .subtitle { margin:0; color:var(--ip-muted); font-weight:650; font-size:0.95rem; }
+
+  .card{
+    padding:18px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap:14px;
+  }
+  @media (max-width: 860px){ .grid{ grid-template-columns:1fr; } }
+  .field-wide{ grid-column: 1 / -1; }
+
+  .field label{
+    display:flex; align-items:center; gap:8px;
+    color: rgba(236,242,239,0.90);
+    font-weight:900;
+    margin-bottom:8px;
+  }
+  .req{ color: rgba(34,197,94,0.95); }
+
+  .hint{
+    margin:8px 0 0;
+    color: rgba(190,201,197,0.65);
+    font-weight:650;
+    font-size:0.88rem;
+  }
+
+  input, select, textarea{
+    width:100%;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(0,0,0,0.22);
+    color: var(--ip-text);
+    padding: 10px 12px;
+    outline:none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    font-weight:800;
+  }
+  input::placeholder, textarea::placeholder{ color: rgba(190,201,197,0.55); font-weight:650; }
+
+  input:focus, select:focus, textarea:focus{
+    border-color: rgba(34,197,94,0.30);
+    box-shadow: 0 0 0 4px rgba(34,197,94,0.10);
+  }
+
+  .error{
+    margin-top:14px;
+    padding:12px 12px;
+    border-radius:14px;
+    border:1px solid rgba(248, 113, 113, 0.35);
+    background: rgba(248, 113, 113, 0.10);
+    color: rgba(254, 226, 226, 0.95);
+    font-weight:850;
+  }
+  .hidden{ display:none !important; }
+
+  .actions{
+    display:flex; gap:10px; align-items:center;
+    padding-top:14px; margin-top:14px;
+    border-top:1px solid rgba(255,255,255,0.08);
+  }
+  @media (max-width: 520px){ .actions{ flex-direction:column; align-items:stretch; } }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    padding:10px 14px; border-radius:12px;
+    border:1px solid var(--ip-border);
+    background: rgba(255,255,255,0.06);
+    color:var(--ip-text); text-decoration:none;
+    font-weight:900; font-size:0.95rem;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+  }
+  .btn:hover{ transform:translateY(-1px); background:rgba(255,255,255,0.08); box-shadow:0 18px 50px rgba(0,0,0,0.35); }
+  .btn-ghost{ background: rgba(255,255,255,0.04); }
+
+  .btn-primary{
+    border-color: rgba(34, 197, 94, 0.35);
+    background: linear-gradient(180deg, rgba(34,197,94,0.18), rgba(34,197,94,0.08));
+    box-shadow: 0 18px 60px rgba(34,197,94,0.12);
+  }
+  .btn-primary:hover{
+    border-color: rgba(34, 197, 94, 0.55);
+    box-shadow: 0 22px 70px rgba(34,197,94,0.16);
+  }
+
+  .btn-icon{
+    width:22px; height:22px; display:grid; place-items:center;
+    border-radius:8px;
+    background: rgba(34,197,94,0.14);
+    border: 1px solid rgba(34,197,94,0.22);
+    color: var(--ip-accent);
+    font-weight:900; line-height:1;
+  }
+
+  button[data-loading="1"]{
+    opacity: 0.85;
+    cursor: progress;
+  }
+</style>

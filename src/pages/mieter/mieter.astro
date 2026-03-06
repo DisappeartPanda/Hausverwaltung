@@ -1,0 +1,338 @@
+---
+import DashboardLayout from '../layouts/DashboardLayout.astro';
+---
+
+<DashboardLayout title="Mieter | ImmobilienPro" fullWidth>
+  <section class="page-shell">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Mieter</h1>
+        <p class="page-subtitle">Sortierbare Übersicht aller Mieter und aktiven Verträge.</p>
+      </div>
+
+      <a href="/mieter/neu" class="btn-primary">+ Neuer Mieter</a>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-card">
+        <div class="field" style="grid-column: span 5;">
+          <label for="mieter-search">Suche</label>
+          <input id="mieter-search" type="text" placeholder="Name, E-Mail, Telefon, Objekt ..." />
+        </div>
+
+        <div class="field" style="grid-column: span 3;">
+          <label for="vertrag-filter">Vertrag</label>
+          <select id="vertrag-filter">
+            <option value="">Alle</option>
+            <option value="aktiv">Nur mit aktivem Vertrag</option>
+            <option value="kein_vertrag">Nur ohne aktiven Vertrag</option>
+          </select>
+        </div>
+
+        <div class="field" style="grid-column: span 2;">
+          <label for="sort-info">Sortierung</label>
+          <input id="sort-info" value="Nachname" readonly />
+        </div>
+
+        <div class="field" style="grid-column: span 2;">
+          <label>&nbsp;</label>
+          <button id="reset-filter" class="btn-success" type="button">Filter zurücksetzen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading" class="empty-state">Laden...</div>
+
+    <div id="mieter-empty" class="empty-state hidden">
+      Noch keine Mieter vorhanden.
+    </div>
+
+    <div id="mieter-panel" class="table-panel hidden">
+      <div class="table-meta">
+        <div>
+          <div class="table-meta-title">Mieterliste</div>
+          <div class="table-meta-sub" id="mieter-count">0 Einträge</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>
+                <button class="sort-btn" data-sort="name">
+                  Name <span class="sort-indicator" id="sort-name">↕</span>
+                </button>
+              </th>
+              <th>
+                <button class="sort-btn" data-sort="kontakt">
+                  Kontakt <span class="sort-indicator" id="sort-kontakt">↕</span>
+                </button>
+              </th>
+              <th>
+                <button class="sort-btn" data-sort="objekt">
+                  Aktueller Vertrag <span class="sort-indicator" id="sort-objekt">↕</span>
+                </button>
+              </th>
+              <th>
+                <button class="sort-btn" data-sort="geburtsdatum">
+                  Geburtsdatum <span class="sort-indicator" id="sort-geburtsdatum">↕</span>
+                </button>
+              </th>
+              <th>Aktionen</th>
+            </tr>
+          </thead>
+          <tbody id="mieter-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</DashboardLayout>
+
+<script>
+  import { supabase } from '../lib/supabase';
+
+  let allRows = [];
+  let filteredRows = [];
+
+  const sorter = createSorter('name', 'asc');
+
+  const createSorter = (initialKey, initialDir = 'asc') => {
+    let sortKey = initialKey;
+    let sortDir = initialDir;
+
+    const compareValues = (a, b) => {
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+
+      if (typeof a === 'number' && typeof b === 'number') return a - b;
+
+      const aDate = Date.parse(a);
+      const bDate = Date.parse(b);
+      if (!Number.isNaN(aDate) && !Number.isNaN(bDate)) return aDate - bDate;
+
+      return String(a).localeCompare(String(b), 'de', { sensitivity: 'base' });
+    };
+
+    const sortRows = (rows, key) => {
+      if (sortKey === key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else {
+        sortKey = key;
+        sortDir = 'asc';
+      }
+
+      const sorted = [...rows].sort((a, b) => {
+        const result = compareValues(a[sortKey], b[sortKey]);
+        return sortDir === 'asc' ? result : -result;
+      });
+
+      return { sorted, sortKey, sortDir };
+    };
+
+    return {
+      sortRows,
+      getState: () => ({ sortKey, sortDir })
+    };
+  };
+
+  const updateSortIndicators = () => {
+    const { sortKey, sortDir } = sorter.getState();
+    document.querySelectorAll('.sort-indicator').forEach(el => el.textContent = '↕');
+    const active = document.getElementById(`sort-${sortKey}`);
+    if (active) active.textContent = sortDir === 'asc' ? '↑' : '↓';
+    const sortInfo = document.getElementById('sort-info');
+    if (sortInfo) sortInfo.value = `${sortKey} (${sortDir === 'asc' ? 'aufsteigend' : 'absteigend'})`;
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '-';
+    return new Date(value).toLocaleDateString('de-DE');
+  };
+
+  const renderRows = (rows) => {
+    const tbody = document.getElementById('mieter-tbody');
+    const panel = document.getElementById('mieter-panel');
+    const empty = document.getElementById('mieter-empty');
+    const count = document.getElementById('mieter-count');
+
+    tbody.innerHTML = '';
+    count.textContent = `${rows.length} Einträge`;
+
+    if (!rows.length) {
+      panel.classList.add('hidden');
+      empty.classList.remove('hidden');
+      empty.textContent = 'Keine Mieter für den aktuellen Filter gefunden.';
+      return;
+    }
+
+    empty.classList.add('hidden');
+    panel.classList.remove('hidden');
+
+    rows.forEach((m) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="cell-title">${m.nachname}, ${m.vorname}</div>
+          <div class="cell-sub">${m.email || 'Keine E-Mail'}</div>
+        </td>
+        <td>
+          <div>${m.email || '-'}</div>
+          <div class="cell-sub">${m.telefon || '-'}</div>
+        </td>
+        <td>
+          ${
+            m.aktiverVertrag
+              ? `
+                <div class="cell-title">${m.objekt || '-'}</div>
+                <div class="cell-sub">${m.wohneinheit || '-'}</div>
+                <div style="margin-top:.45rem;"><span class="badge success">Aktiv</span></div>
+              `
+              : `
+                <span class="badge neutral">Kein aktiver Vertrag</span>
+              `
+          }
+        </td>
+        <td>${formatDate(m.geburtsdatum)}</td>
+        <td>
+          <div class="row-actions">
+            <a href="/mieter/${m.id}" class="row-link">Details</a>
+            ${
+              !m.aktiverVertrag
+                ? `<a href="/mietvertraege/neu?mieter=${m.id}" class="row-link">Vertrag anlegen</a>`
+                : ''
+            }
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  const applyFilters = () => {
+    const search = document.getElementById('mieter-search').value.trim().toLowerCase();
+    const vertrag = document.getElementById('vertrag-filter').value;
+
+    filteredRows = allRows.filter((m) => {
+      const haystack = [
+        m.vorname,
+        m.nachname,
+        m.email,
+        m.telefon,
+        m.objekt,
+        m.wohneinheit
+      ].filter(Boolean).join(' ').toLowerCase();
+
+      const matchesSearch = !search || haystack.includes(search);
+      const matchesVertrag =
+        !vertrag ||
+        (vertrag === 'aktiv' && m.aktiverVertrag) ||
+        (vertrag === 'kein_vertrag' && !m.aktiverVertrag);
+
+      return matchesSearch && matchesVertrag;
+    });
+
+    const { sortKey } = sorter.getState();
+    const result = sorter.sortRows(filteredRows, sortKey);
+    filteredRows = result.sorted;
+    updateSortIndicators();
+    renderRows(filteredRows);
+  };
+
+  const initialSort = () => {
+    const result = sorter.sortRows(allRows, 'name');
+    filteredRows = result.sorted;
+    updateSortIndicators();
+    renderRows(filteredRows);
+  };
+
+  const loadMieter = async () => {
+    const loading = document.getElementById('loading');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    const { data: vermieter } = await supabase
+      .from('vermieter')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .single();
+
+    if (!vermieter) {
+      loading.classList.add('hidden');
+      document.getElementById('mieter-empty').classList.remove('hidden');
+      document.getElementById('mieter-empty').textContent = 'Kein Vermieterprofil gefunden.';
+      return;
+    }
+
+    const { data: mieter } = await supabase
+      .from('mieter')
+      .select(`
+        id,
+        vorname,
+        nachname,
+        email,
+        telefon,
+        geburtsdatum,
+        mietvertraege (
+          id,
+          status,
+          mietbeginn,
+          wohneinheiten (
+            bezeichnung,
+            objekte (
+              bezeichnung
+            )
+          )
+        )
+      `)
+      .order('nachname', { ascending: true });
+
+    loading.classList.add('hidden');
+
+    if (!mieter || !mieter.length) {
+      document.getElementById('mieter-empty').classList.remove('hidden');
+      document.getElementById('mieter-empty').textContent = 'Noch keine Mieter vorhanden.';
+      return;
+    }
+
+    allRows = mieter.map((m) => {
+      const aktiverVertrag = m.mietvertraege?.find((v) => v.status === 'aktiv');
+
+      return {
+        ...m,
+        aktiverVertrag: !!aktiverVertrag,
+        name: `${m.nachname} ${m.vorname}`,
+        kontakt: `${m.email || ''} ${m.telefon || ''}`.trim(),
+        objekt: aktiverVertrag?.wohneinheiten?.objekte?.bezeichnung || '',
+        wohneinheit: aktiverVertrag?.wohneinheiten?.bezeichnung || ''
+      };
+    });
+
+    initialSort();
+  };
+
+  document.getElementById('mieter-search')?.addEventListener('input', applyFilters);
+  document.getElementById('vertrag-filter')?.addEventListener('change', applyFilters);
+
+  document.querySelectorAll('[data-sort]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-sort');
+      const result = sorter.sortRows(filteredRows.length ? filteredRows : allRows, key);
+      filteredRows = result.sorted;
+      updateSortIndicators();
+      renderRows(filteredRows);
+    });
+  });
+
+  document.getElementById('reset-filter')?.addEventListener('click', () => {
+    document.getElementById('mieter-search').value = '';
+    document.getElementById('vertrag-filter').value = '';
+    filteredRows = [...allRows];
+    const result = sorter.sortRows(filteredRows, 'name');
+    filteredRows = result.sorted;
+    updateSortIndicators();
+    renderRows(filteredRows);
+  });
+
+  loadMieter();
+</script>

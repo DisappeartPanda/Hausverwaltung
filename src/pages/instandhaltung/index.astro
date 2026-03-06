@@ -1,6 +1,6 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { supabase, getAnstehendeWartungen, getWartungsStatistiken } from '../../lib/supabase';
+import { supabase, getAnstehendeWartungen, getWartungsStatistiken } from '../../lib/supabase/supabase';
 
 // Auth Check
 const { data: { session } } = await supabase.auth.getSession();

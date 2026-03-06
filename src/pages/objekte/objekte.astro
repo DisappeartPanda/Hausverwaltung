@@ -1,0 +1,906 @@
+---
+export const prerender = false;
+
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { requireLandlordSession } from '../../lib/supabase/serverAuth';
+
+type ObjektRow = {
+  id: string;
+  vermieter_id: string;
+  bezeichnung: string | null;
+  wohnflaeche_qm: number | null;
+  baujahr: number | null;
+  bauweise: string | null;
+};
+
+type UnitRow = {
+  objekt_id: string | null;
+  status?: string | null;
+  // optional, nur wenn Spalte existiert
+  kaltmiete_monat?: number | null;
+};
+
+let objekte: any[] = [];
+let loadError = false;
+let errorMessage = '';
+
+const safeText = (v: unknown, fallback = '—') => {
+  const s = String(v ?? '').trim();
+  return s.length ? s : fallback;
+};
+
+const safeNum = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+// ✅ Edit-Mode via Query: /objekte?edit=1
+const editMode = Astro.url.searchParams.get('edit') === '1';
+
+// ✅ zentrale Session (inkl. Refresh/Retry/Login redirect)
+const { supabase, user } = await requireLandlordSession(Astro);
+
+try {
+  // 1) Objekte-IDs über Wohneinheiten, die dem User gehören
+  const { data: ownedUnits, error: weErr } = await supabase
+    .from('wohneinheiten')
+    .select('objekt_id')
+    .eq('eigentuemer_id', user.id);
+
+  if (weErr) throw weErr;
+
+  const objektIds = Array.from(new Set((ownedUnits ?? []).map((x: any) => x.objekt_id).filter(Boolean)));
+
+  if (objektIds.length === 0) {
+    objekte = [];
+  } else {
+    // 2) Objekte laden
+    const { data: rows, error: objekteErr } = await supabase
+      .from('objekte')
+      .select('id, vermieter_id, bezeichnung, wohnflaeche_qm, baujahr, bauweise')
+      .in('id', objektIds)
+      .order('bezeichnung')
+      .returns<ObjektRow[]>();
+
+    if (objekteErr) throw objekteErr;
+
+    // 3) Wohneinheiten laden + gruppieren (kaltmiete_monat optional)
+    let unitRows: UnitRow[] = [];
+    {
+      const first = await supabase
+        .from('wohneinheiten')
+        .select('objekt_id, status, kaltmiete_monat')
+        .in('objekt_id', objektIds);
+
+      if (first.error) {
+        const second = await supabase
+          .from('wohneinheiten')
+          .select('objekt_id, status')
+          .in('objekt_id', objektIds);
+
+        if (second.error) {
+          const third = await supabase
+            .from('wohneinheiten')
+            .select('objekt_id')
+            .in('objekt_id', objektIds);
+
+          if (third.error) throw third.error;
+          unitRows = (third.data ?? []) as any;
+        } else {
+          unitRows = (second.data ?? []) as any;
+        }
+      } else {
+        unitRows = (first.data ?? []) as any;
+      }
+    }
+
+    const unitByObjekt = new Map<string, UnitRow[]>();
+    for (const u of unitRows ?? []) {
+      const key = u.objekt_id ?? null;
+      if (!key) continue;
+      const arr = unitByObjekt.get(key) ?? [];
+      arr.push(u);
+      unitByObjekt.set(key, arr);
+    }
+
+    objekte = (rows ?? []).map((o) => {
+      const units = unitByObjekt.get(o.id) ?? [];
+      const totalUnits = units.length;
+
+      const vacant = units.filter((u) => String(u.status ?? '').toLowerCase().includes('frei')).length;
+      const occupied = totalUnits ? Math.max(0, totalUnits - vacant) : 0;
+      const ratio = totalUnits ? occupied / totalUnits : 0;
+
+      const rent = units.reduce((sum, u) => {
+        const n = safeNum((u as any).kaltmiete_monat);
+        return n === null ? sum : sum + n;
+      }, 0);
+
+      const missingCore = !safeText(o.bezeichnung, '').length || o.wohnflaeche_qm == null || o.baujahr == null;
+
+      return {
+        ...o,
+        einheiten_count: totalUnits,
+        occupied_count: occupied,
+        vacant_count: vacant,
+        occupancy_ratio: ratio,
+        rent_month_total: rent,
+        missing_core: missingCore,
+      };
+    });
+  }
+} catch (e: any) {
+  loadError = true;
+  errorMessage = e?.message ?? 'DB Fehler';
+}
+
+// KPI oben
+const total = objekte.length;
+const unnamed = objekte.filter((o) => !String(o.bezeichnung ?? '').trim()).length;
+const withVacancy = objekte.filter((o) => (o.vacant_count ?? 0) > 0).length;
+const missingCount = objekte.filter((o) => Boolean(o.missing_core)).length;
+
+// Edit Toggle
+const editHref = editMode ? '/objekte' : '/objekte?edit=1';
+const editLabel = editMode ? 'Fertig' : 'Bearbeiten';
+---
+
+<DashboardLayout title="Objekte">
+  <section class="page">
+    <header class="header">
+      <div class="header-left">
+        <h1 class="title">Meine Objekte</h1>
+        <p class="subtitle">
+          {editMode
+            ? 'Bearbeitungsmodus aktiv – du kannst Objekte löschen.'
+            : 'Übersicht deiner Immobilien – klick auf eine Karte für die Detailansicht.'}
+        </p>
+      </div>
+
+      <div class="header-actions">
+        <a class="btn btn-ghost" href={editHref}>{editLabel}</a>
+
+        <a class="btn btn-primary" href="/objekte/neu">
+          <span class="btn-icon">＋</span>
+          Neues Objekt
+        </a>
+      </div>
+    </header>
+
+    {(!loadError && total > 0) && (
+      <div class="kpis" aria-label="KPI Übersicht">
+        <article class="kpi kpi-accent">
+          <div class="kpi-top">
+            <div class="kpi-icon" aria-hidden="true">🏢</div>
+            <div class="kpi-label">Objekte</div>
+          </div>
+          <div class="kpi-value">{total}</div>
+          <div class="kpi-hint">Gesamtbestand</div>
+        </article>
+
+        <article class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-icon" aria-hidden="true">🧩</div>
+            <div class="kpi-label">Leerstand</div>
+          </div>
+          <div class="kpi-value">{withVacancy}</div>
+          <div class="kpi-hint">Objekte mit freien Einheiten</div>
+        </article>
+
+        <article class="kpi">
+          <div class="kpi-top">
+            <div class="kpi-icon" aria-hidden="true">🧾</div>
+            <div class="kpi-label">Daten fehlen</div>
+          </div>
+          <div class="kpi-value">{missingCount}</div>
+          <div class="kpi-hint">z.B. Baujahr/Fläche</div>
+        </article>
+
+        <article class="kpi kpi-warn">
+          <div class="kpi-top">
+            <div class="kpi-icon" aria-hidden="true">✨</div>
+            <div class="kpi-label">Unbenannt</div>
+          </div>
+          <div class="kpi-value">{unnamed}</div>
+          <div class="kpi-hint">{unnamed === 0 ? 'Alles sauber' : 'Bitte benennen'}</div>
+        </article>
+      </div>
+    )}
+
+    <div class="toolbar">
+      <div class="search">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="M21 21l-4.3-4.3"></path>
+        </svg>
+        <input id="search" class="search-input" type="search" placeholder="Objekte durchsuchen (Name, Baujahr, Bauweise …)" autocomplete="off" />
+      </div>
+
+      <div class="sort">
+        <label class="sort-label" for="sortSelect">Sortieren</label>
+        <select id="sortSelect" class="sort-select">
+          <option value="name-asc">Name A–Z</option>
+          <option value="name-desc">Name Z–A</option>
+          <option value="units-desc">Wohneinheiten ↓</option>
+          <option value="area-desc">Fläche ↓</option>
+        </select>
+      </div>
+
+      <div class="meta">
+        <span id="countBadge" class={`badge ${total ? '' : 'hidden'}`}>
+          {total === 1 ? '1 Objekt' : `${total} Objekte`}
+        </span>
+      </div>
+    </div>
+
+    {loadError && (
+      <div class="state">
+        <div class="state-text">
+          <div class="state-title">Konnte Objekte nicht laden</div>
+          <div class="state-subtitle">{errorMessage}</div>
+        </div>
+        <div class="state-actions">
+          <a class="btn btn-ghost" href="/objekte">Neu laden</a>
+        </div>
+      </div>
+    )}
+
+    {!loadError && total === 0 && (
+      <div class="empty">
+        <div class="empty-card">
+          <div class="empty-icon">🏢</div>
+          <h2>Noch keine Objekte vorhanden</h2>
+          <p>Lege dein erstes Objekt an, um Mieter, Zahlungen und Wartungen zu verwalten.</p>
+          <a class="btn btn-primary" href="/objekte/neu">Erstes Objekt anlegen</a>
+        </div>
+      </div>
+    )}
+
+    {!loadError && total > 0 && (
+      <div class="grid" id="objekte-liste" aria-live="polite" data-edit={editMode ? '1' : '0'}>
+        {objekte.map((o) => {
+          const title = safeText(o.bezeichnung, 'Unbenanntes Objekt');
+          const hay = [
+            o.bezeichnung ?? '',
+            o.baujahr ?? '',
+            o.bauweise ?? '',
+            o.wohnflaeche_qm ?? '',
+            o.einheiten_count ?? '',
+          ].join(' ').toLowerCase().trim();
+
+          const ratioPct = Math.round((Number(o.occupancy_ratio ?? 0) * 100));
+          const showRent = Number(o.rent_month_total ?? 0) > 0;
+
+          return (
+            <article
+              class="card"
+              data-search={hay}
+              data-name={title.toLowerCase()}
+              data-units={String(o.einheiten_count ?? 0)}
+              data-area={String(o.wohnflaeche_qm ?? 0)}
+              data-objekt-card
+              data-objekt-id={o.id}
+            >
+              {/* Normal-Mode: ganze Karte klickbar */}
+              {!editMode && (
+                <a class="card-link" href={`/objekte/${o.id}`} aria-label={`Öffne ${title}`}></a>
+              )}
+
+              {/* Edit-Mode: Delete Button statt Leerstand */}
+              {editMode && (
+                <div class="card-editbar">
+                  <button
+                    class="edit-danger"
+                    type="button"
+                    data-delete-objekt
+                    data-objekt-id={o.id}
+                    aria-label={`Lösche ${title}`}
+                  >
+                    Löschen
+                  </button>
+                </div>
+              )}
+
+              <div class="card-body">
+                <div class="card-toprow">
+                  <div class="card-dot" aria-hidden="true"></div>
+
+                  <div class="badges">
+                    {/* ✅ Im Edit-Mode: Leerstand-Pille ausblenden */}
+                    {!editMode && (o.vacant_count ?? 0) > 0 && <span class="badge-warn">Leerstand</span>}
+                    {o.missing_core && <span class="badge-dim">Daten fehlen</span>}
+                  </div>
+                </div>
+
+                <h3 class="card-title">{title}</h3>
+
+                <div class="card-kpis">
+                  <div class="kpi-main">
+                    <div class="kpi-value">{o.einheiten_count ?? 0}</div>
+                    <div class="kpi-label">Wohneinheiten</div>
+                  </div>
+
+                  <div class="kpi-side">
+                    <div class="kpi-side-value">
+                      {o.wohnflaeche_qm != null ? `${Number(o.wohnflaeche_qm).toLocaleString('de-DE')} m²` : '—'}
+                    </div>
+                    <div class="kpi-side-label">Gesamtfläche</div>
+                  </div>
+                </div>
+
+                <div class="occupancy">
+                  <span class="occ-strong">{o.occupied_count ?? 0}</span>
+                  <span class="occ-muted">/ {o.einheiten_count ?? 0} vermietet</span>
+                  {(o.vacant_count ?? 0) > 0 && <span class="occ-warn">{o.vacant_count} frei</span>}
+                </div>
+
+                <div class="bar" aria-label="Belegung">
+                  <div class="bar-fill" style={`width:${ratioPct}%`}></div>
+                </div>
+
+                {showRent && (
+                  <div class="rent">
+                    <span class="rent-label">Monat</span>
+                    <span class="rent-value">{Number(o.rent_month_total).toLocaleString('de-DE')} €</span>
+                  </div>
+                )}
+
+                <div class="card-meta">
+                  {o.baujahr && <span>{o.baujahr}</span>}
+                  {o.baujahr && o.bauweise && <span class="dot">•</span>}
+                  {o.bauweise && <span>{o.bauweise}</span>}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    )}
+
+    <div class="toast" data-toast hidden></div>
+  </section>
+</DashboardLayout>
+
+<script>
+  /** @typedef {'name-asc'|'name-desc'|'units-desc'|'area-desc'} SortMode */
+
+  const input = document.querySelector('#search');
+  const grid = document.querySelector('#objekte-liste');
+  const badge = document.querySelector('#countBadge');
+  const sortSelect = document.querySelector('#sortSelect');
+
+  const toast = document.querySelector('[data-toast]');
+
+  const normalize = (s) => String(s ?? '').toLowerCase().trim();
+
+  const showToast = (msg, type = 'warn') => {
+    if (!toast) return;
+    toast.textContent = msg;
+
+    toast.classList.remove('show', 'ok', 'err', 'warn');
+    toast.classList.add(type);
+    toast.hidden = false;
+
+    void toast.offsetWidth;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => (toast.hidden = true), 180);
+    }, 2600);
+  };
+
+  const updateCount = (n) => {
+    if (!badge) return;
+    badge.textContent = n === 1 ? '1 Objekt' : `${n} Objekte`;
+    badge.classList.toggle('hidden', n === 0);
+  };
+
+  const apply = () => {
+    if (!grid) return;
+
+    const q = normalize((input instanceof HTMLInputElement) ? input.value : '');
+    /** @type {SortMode} */
+    const mode = /** @type {SortMode} */ ((sortSelect instanceof HTMLSelectElement) ? sortSelect.value : 'name-asc');
+
+    const cards = Array.from(grid.querySelectorAll('.card')).filter((c) => c instanceof HTMLElement);
+
+    let shown = 0;
+    for (const c of cards) {
+      const hay = normalize(c.getAttribute('data-search'));
+      const ok = !q || hay.includes(q);
+      c.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    }
+    updateCount(shown);
+
+    const visible = cards.filter((c) => c.style.display !== 'none');
+
+    const getNum = (el, attr) => {
+      const v = normalize(el.getAttribute(attr));
+      const n = parseFloat(v.replace(',', '.'));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    visible.sort((a, b) => {
+      const nameA = normalize(a.getAttribute('data-name'));
+      const nameB = normalize(b.getAttribute('data-name'));
+
+      if (mode === 'name-desc') return nameB.localeCompare(nameA);
+      if (mode === 'name-asc') return nameA.localeCompare(nameB);
+
+      if (mode === 'units-desc') {
+        const ua = getNum(a, 'data-units');
+        const ub = getNum(b, 'data-units');
+        return ub - ua || nameA.localeCompare(nameB);
+      }
+
+      if (mode === 'area-desc') {
+        const aa = getNum(a, 'data-area');
+        const ab = getNum(b, 'data-area');
+        return ab - aa || nameA.localeCompare(nameB);
+      }
+
+      return nameA.localeCompare(nameB);
+    });
+
+    for (const el of visible) grid.appendChild(el);
+  };
+
+  if (input) input.addEventListener('input', apply);
+  if (sortSelect) sortSelect.addEventListener('change', apply);
+  apply();
+
+  // ✅ Delete Objekt (Edit-Mode)
+  document.addEventListener('click', async (e) => {
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+
+    const btn = t.closest('[data-delete-objekt]');
+    if (!btn) return;
+
+    const id = btn.getAttribute('data-objekt-id');
+    if (!id) return;
+
+    btn.setAttribute('disabled', 'true');
+    btn.textContent = 'Lösche…';
+
+    let res;
+    try {
+      res = await fetch(`/api/objekte/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      showToast('Netzwerkfehler beim Löschen.', 'err');
+      btn.removeAttribute('disabled');
+      btn.textContent = 'Löschen';
+      return;
+    }
+
+    if (!res.ok) {
+      const msg = (await res.text()).slice(0, 180) || 'Löschen fehlgeschlagen.';
+      showToast(msg, 'err');
+      btn.removeAttribute('disabled');
+      btn.textContent = 'Löschen';
+      return;
+    }
+
+    const card = btn.closest('[data-objekt-card]');
+    if (card) {
+      card.classList.add('removing');
+      setTimeout(() => card.remove(), 180);
+    }
+
+    showToast('Objekt gelöscht.', 'ok');
+    apply(); // count refresh
+  });
+</script>
+
+<style>
+  :global(:root) {
+    --ip-card: rgba(16, 22, 19, 0.72);
+    --ip-card-2: rgba(12, 17, 14, 0.72);
+    --ip-border: rgba(255,255,255,0.10);
+    --ip-text: rgba(236, 242, 239, 0.92);
+    --ip-muted: rgba(190, 201, 197, 0.74);
+    --ip-accent: #22c55e;
+    --ip-shadow: 0 24px 70px rgba(0,0,0,0.45);
+  }
+
+  .page { display:flex; flex-direction:column; gap:16px; }
+
+  .header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+  .title { margin:0; font-size:1.65rem; font-weight:950; letter-spacing:-0.02em; color:var(--ip-text); }
+  .subtitle { margin:6px 0 0; color:var(--ip-muted); font-weight:650; font-size:0.95rem; }
+  .header-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+
+  .btn{
+    display:inline-flex; align-items:center; gap:10px;
+    padding:10px 14px; border-radius:12px;
+    border:1px solid var(--ip-border);
+    background: rgba(255,255,255,0.06);
+    color:var(--ip-text); text-decoration:none;
+    font-weight:900; font-size:0.95rem;
+    transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+  }
+  .btn:hover{ transform:translateY(-1px); background:rgba(255,255,255,0.08); box-shadow:0 18px 50px rgba(0,0,0,0.35); }
+
+  .btn-primary{
+    border-color: rgba(34, 197, 94, 0.35);
+    background: linear-gradient(180deg, rgba(34,197,94,0.18), rgba(34,197,94,0.08));
+    box-shadow: 0 18px 60px rgba(34,197,94,0.12);
+  }
+  .btn-primary:hover{
+    border-color: rgba(34, 197, 94, 0.55);
+    box-shadow: 0 22px 70px rgba(34,197,94,0.16);
+  }
+  .btn-ghost{ background: rgba(255,255,255,0.04); }
+
+  .btn-icon{
+    width:22px; height:22px; display:grid; place-items:center;
+    border-radius:8px;
+    background: rgba(34,197,94,0.14);
+    border: 1px solid rgba(34,197,94,0.22);
+    color: var(--ip-accent);
+    font-weight:900; line-height:1;
+  }
+
+  /* KPI */
+  .kpis{
+    display:grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+  @media (max-width: 1100px){ .kpis{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px){ .kpis{ grid-template-columns: 1fr; } }
+
+  .kpi{
+    padding: 14px 14px 12px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::after{
+    content:'';
+    position:absolute;
+    inset:-90px -70px auto auto;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(34,197,94,0.16), transparent 60%);
+    filter: blur(2px);
+    pointer-events:none;
+  }
+  .kpi-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .kpi-icon{
+    width: 38px; height: 38px;
+    border-radius: 14px;
+    display:grid; place-items:center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    font-size: 18px;
+  }
+  .kpi-label{ color: rgba(190,201,197,0.80); font-weight: 850; letter-spacing: .02em; }
+  .kpi-value{ margin-top: 10px; font-size: 1.65rem; font-weight: 950; color: rgba(236,242,239,0.95); }
+  .kpi-hint{ margin-top: 2px; color: rgba(190,201,197,0.70); font-weight: 650; font-size: 0.9rem; }
+
+  .kpi-accent{
+    border-color: rgba(34,197,94,0.22);
+    box-shadow: 0 26px 90px rgba(0,0,0,0.35), 0 0 0 1px rgba(34,197,94,0.10) inset;
+  }
+  .kpi-accent::after{
+    background: radial-gradient(circle, rgba(34,197,94,0.22), transparent 60%);
+  }
+  .kpi-warn::after{
+    background: radial-gradient(circle, rgba(250,204,21,0.14), transparent 60%);
+  }
+
+  /* Toolbar */
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  @media (max-width: 880px){ .toolbar{ flex-direction:column; align-items:stretch; } }
+
+  .search{
+    flex:1; display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:14px;
+    background: linear-gradient(180deg, var(--ip-card), var(--ip-card-2));
+    border:1px solid var(--ip-border);
+    box-shadow: var(--ip-shadow);
+  }
+  .search-icon{ color: rgba(255,255,255,0.55); flex:0 0 auto; }
+  .search-input{
+    width:100%;
+    background:transparent; border:none; outline:none;
+    color:var(--ip-text); font-weight:750; font-size:0.95rem;
+  }
+  .search-input::placeholder{ color: rgba(190,201,197,0.55); font-weight:650; }
+
+  .sort{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:14px;
+    background: linear-gradient(180deg, var(--ip-card), var(--ip-card-2));
+    border:1px solid var(--ip-border);
+    box-shadow: var(--ip-shadow);
+    min-width: 260px;
+    justify-content:space-between;
+  }
+  .sort-label{ color: rgba(190,201,197,0.74); font-weight:850; font-size:0.9rem; }
+  .sort-select{
+    appearance:none;
+    background: rgba(0,0,0,0.20);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--ip-text);
+    border-radius: 12px;
+    padding: 8px 10px;
+    font-weight: 850;
+    outline: none;
+  }
+
+  .badge{
+    padding:8px 12px; border-radius:999px;
+    border:1px solid rgba(34,197,94,0.22);
+    background: rgba(34,197,94,0.10);
+    color: rgba(207, 255, 225, 0.92);
+    font-weight:900; font-size:0.9rem;
+  }
+  .hidden{ display:none !important; }
+
+  /* Cards */
+  .grid{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; }
+  @media (max-width:1100px){ .grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+  @media (max-width:700px){ .header{ flex-direction:column; align-items:stretch; } .grid{ grid-template-columns:1fr; } }
+
+  .card{
+    position:relative;
+    padding:18px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16,22,19,0.78), rgba(10,14,12,0.78));
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+    transition: all 180ms ease;
+    cursor:pointer;
+    overflow:hidden;
+  }
+  .card:hover{
+    transform: translateY(-3px);
+    border-color: rgba(34,197,94,0.25);
+    box-shadow: 0 30px 90px rgba(0,0,0,0.45);
+  }
+
+  .card.removing{
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  .card-link{
+    position:absolute;
+    inset:0;
+    border-radius:20px;
+    z-index:5;
+    display:block;
+  }
+
+  .card-editbar{
+    position:absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 7;
+    display:flex;
+    gap: 8px;
+  }
+
+  .edit-danger{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(239,68,68,0.30);
+    background: rgba(239,68,68,0.12);
+    color: rgba(255,255,255,0.92);
+    font-weight: 950;
+    cursor: pointer;
+    transition: all .18s ease;
+  }
+  .edit-danger:hover{
+    border-color: rgba(239,68,68,0.55);
+    background: rgba(239,68,68,0.16);
+    transform: translateY(-1px);
+  }
+  .edit-danger:disabled{
+    opacity: .6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .card-body{
+    position:relative;
+    z-index:2;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    pointer-events:none; /* macht Card-Link super zuverlässig */
+  }
+
+  .card-toprow{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+
+  .card-dot{
+    width:10px;
+    height:10px;
+    border-radius:999px;
+    background: rgba(34,197,94,0.90);
+    box-shadow:0 0 0 4px rgba(34,197,94,0.15);
+    flex:0 0 auto;
+  }
+
+  .badges{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+
+  .badge-warn, .badge-dim{
+    padding:7px 10px;
+    border-radius:999px;
+    font-weight:900;
+    font-size:0.82rem;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.06);
+    color: rgba(236,242,239,0.85);
+    white-space:nowrap;
+  }
+  .badge-warn{
+    border-color: rgba(250,204,21,0.20);
+    background: rgba(250,204,21,0.10);
+    color: rgba(255,244,204,0.92);
+  }
+  .badge-dim{
+    border-color: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: rgba(190,201,197,0.72);
+  }
+
+  .card-title{
+    margin:0;
+    font-size:1.15rem;
+    font-weight:950;
+    color: rgba(236,242,239,0.95);
+    letter-spacing:-0.01em;
+  }
+
+  .card-kpis{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:20px;
+  }
+
+  .kpi-main .kpi-value{
+    font-size:2rem;
+    font-weight:950;
+    color: #22c55e;
+    line-height:1;
+  }
+  .kpi-main .kpi-label{
+    font-size:0.85rem;
+    font-weight:800;
+    color: rgba(190,201,197,0.75);
+  }
+
+  .kpi-side{ text-align:right; }
+  .kpi-side-value{
+    font-weight:900;
+    font-size:1rem;
+    color: rgba(236,242,239,0.90);
+  }
+  .kpi-side-label{
+    font-size:0.8rem;
+    color: rgba(190,201,197,0.70);
+    font-weight:800;
+  }
+
+  .occupancy{
+    display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    color: rgba(190,201,197,0.78);
+    font-weight:800;
+    font-size:0.88rem;
+  }
+  .occ-strong{ color: rgba(236,242,239,0.92); font-weight:950; }
+  .occ-muted{ opacity:.85; }
+  .occ-warn{
+    padding:6px 10px; border-radius:999px;
+    border:1px solid rgba(250,204,21,0.20);
+    background: rgba(250,204,21,0.10);
+    color: rgba(255,244,204,0.92);
+    font-weight:900;
+  }
+
+  .bar{
+    height:10px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.05);
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    border-radius:999px;
+    background: linear-gradient(90deg, rgba(34,197,94,0.65), rgba(34,197,94,0.25));
+  }
+
+  .rent{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 12px;
+    border-radius:16px;
+    border:1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+  }
+  .rent-label{ color: rgba(190,201,197,0.70); font-weight:850; font-size:0.86rem; }
+  .rent-value{ color: rgba(236,242,239,0.92); font-weight:950; }
+
+  .card-meta{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    font-size:0.85rem;
+    color: rgba(190,201,197,0.70);
+    font-weight:700;
+  }
+  .dot{ color: rgba(190,201,197,0.35); }
+
+  /* States */
+  .state{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:22px; border-radius:18px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border:1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.05);
+    color: var(--ip-text);
+  }
+  .state-title{ font-weight:950; }
+  .state-subtitle{ color: var(--ip-muted); font-weight:650; font-size:0.92rem; margin-top:2px; }
+
+  .empty{ display:grid; place-items:center; padding:14px 0; }
+  .empty-card{
+    width:min(720px, 100%);
+    text-align:center;
+    padding:26px 18px;
+    border-radius:20px;
+    background: linear-gradient(180deg, rgba(16, 22, 19, 0.74), rgba(10, 14, 12, 0.74));
+    border:1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 28px 90px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06);
+    color: var(--ip-text);
+  }
+  .empty-icon{ font-size:2.2rem; margin-bottom:10px; }
+  .empty-card h2{ margin:0; color: var(--ip-text); font-weight:950; letter-spacing:-0.02em; }
+  .empty-card p{ margin:10px 0 18px; color: var(--ip-muted); font-weight:650; }
+
+  /* Toast */
+  .toast{
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 120;
+    padding: .6rem .85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.92);
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 18px 45px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: opacity .2s ease, transform .2s ease;
+  }
+  .toast.show{
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px);
+  }
+  .toast.ok{
+    border-color: rgba(34,197,94,0.25);
+    background: rgba(34,197,94,0.12);
+  }
+  .toast.err{
+    border-color: rgba(239,68,68,0.25);
+    background: rgba(239,68,68,0.12);
+  }
+  .toast.warn{
+    border-color: rgba(253,224,71,0.22);
+    background: rgba(253,224,71,0.10);
+  }
+</style>

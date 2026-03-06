@@ -1,0 +1,317 @@
+<style>
+  .page-shell{
+    width: min(1400px, 100%);
+    margin: 0 auto;
+    padding: 0 clamp(0.75rem, 1.4vw, 1.25rem);
+    box-sizing: border-box;
+  }
+
+  .page-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .page-title{
+    margin:0;
+    font-size: clamp(1.35rem, 2vw, 1.85rem);
+    font-weight: 950;
+    letter-spacing: -0.02em;
+    color: rgba(255,255,255,0.96);
+  }
+
+  .page-subtitle{
+    margin: .2rem 0 0;
+    color: var(--gray-400);
+    font-weight: 650;
+    font-size: .92rem;
+  }
+
+  .btn-primary,
+  .btn-danger,
+  .btn-success{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.5rem;
+    min-height: 42px;
+    padding: .75rem 1rem;
+    border-radius: 1rem;
+    text-decoration:none;
+    font-weight: 850;
+    font-size: .92rem;
+    transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.22);
+  }
+
+  .btn-primary{
+    background: rgba(34,197,94,0.16);
+    color: rgba(255,255,255,0.95);
+    border-color: rgba(134,239,172,0.28);
+  }
+
+  .btn-danger{
+    background: rgba(239,68,68,0.16);
+    color: rgba(255,255,255,0.95);
+    border-color: rgba(248,113,113,0.26);
+  }
+
+  .btn-success{
+    background: rgba(59,130,246,0.16);
+    color: rgba(255,255,255,0.95);
+    border-color: rgba(96,165,250,0.26);
+  }
+
+  .btn-primary:hover,
+  .btn-danger:hover,
+  .btn-success:hover{
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(134,239,172,0.40);
+  }
+
+  .toolbar{
+    display:grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: .8rem;
+    margin-bottom: 1rem;
+  }
+
+  .toolbar-card,
+  .table-panel,
+  .empty-state{
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    border: 2px solid var(--dark-lighter);
+    border-radius: 1.5rem;
+  }
+
+  .toolbar-card{
+    grid-column: 1 / -1;
+    padding: .9rem;
+    display:grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: .75rem;
+  }
+
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:.4rem;
+    min-width:0;
+  }
+
+  .field label{
+    font-size:.8rem;
+    font-weight:800;
+    color: var(--gray-400);
+  }
+
+  .field input,
+  .field select{
+    width:100%;
+    min-height: 42px;
+    border-radius: .95rem;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.92);
+    padding: .75rem .9rem;
+    outline: none;
+  }
+
+  .field input::placeholder{
+    color: rgba(255,255,255,0.35);
+  }
+
+  .field input:focus,
+  .field select:focus{
+    border-color: rgba(134,239,172,0.35);
+    box-shadow: 0 0 0 4px rgba(34,197,94,0.08);
+  }
+
+  .table-panel{
+    overflow: hidden;
+  }
+
+  .table-wrap{
+    overflow:auto;
+  }
+
+  .data-table{
+    width:100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 980px;
+  }
+
+  .data-table thead th{
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(10,14,22,0.92);
+    backdrop-filter: blur(12px);
+    color: rgba(255,255,255,0.72);
+    font-size: .78rem;
+    font-weight: 900;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: .95rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .data-table tbody td{
+    padding: .95rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    vertical-align: middle;
+    color: rgba(255,255,255,0.88);
+    font-size: .92rem;
+  }
+
+  .data-table tbody tr{
+    transition: background .18s ease;
+  }
+
+  .data-table tbody tr:hover{
+    background: rgba(255,255,255,0.04);
+  }
+
+  .sort-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:.45rem;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .sort-btn:hover{
+    color: rgba(255,255,255,0.96);
+  }
+
+  .sort-indicator{
+    font-size: .9rem;
+    opacity: .7;
+  }
+
+  .cell-title{
+    font-weight: 850;
+    color: rgba(255,255,255,0.95);
+  }
+
+  .cell-sub{
+    margin-top: .18rem;
+    color: var(--gray-400);
+    font-size: .82rem;
+    font-weight: 650;
+  }
+
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding: .38rem .65rem;
+    border-radius: 999px;
+    font-size: .74rem;
+    font-weight: 900;
+    border: 1px solid rgba(255,255,255,0.10);
+    white-space: nowrap;
+  }
+
+  .badge.success{
+    background: rgba(134,239,172,0.10);
+    color: var(--primary);
+    border-color: rgba(134,239,172,0.20);
+  }
+
+  .badge.warning{
+    background: rgba(253,224,71,0.08);
+    color: var(--warning);
+    border-color: rgba(253,224,71,0.18);
+  }
+
+  .badge.danger{
+    background: rgba(239,68,68,0.12);
+    color: rgba(255,255,255,0.95);
+    border-color: rgba(239,68,68,0.24);
+  }
+
+  .badge.info{
+    background: rgba(96,165,250,0.10);
+    color: rgba(191,219,254,0.96);
+    border-color: rgba(96,165,250,0.24);
+  }
+
+  .badge.neutral{
+    background: rgba(255,255,255,0.05);
+    color: var(--gray-400);
+    border-color: rgba(255,255,255,0.10);
+  }
+
+  .row-actions{
+    display:flex;
+    align-items:center;
+    gap:.75rem;
+    flex-wrap: wrap;
+  }
+
+  .row-link,
+  .row-button{
+    color: rgba(255,255,255,0.88);
+    text-decoration: none;
+    font-weight: 800;
+    font-size: .86rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .row-link:hover,
+  .row-button:hover{
+    color: rgba(134,239,172,0.95);
+  }
+
+  .empty-state{
+    padding: 2rem;
+    text-align:center;
+    color: var(--gray-400);
+    font-weight: 700;
+  }
+
+  .table-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:1rem;
+    padding: .9rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .table-meta-title{
+    color: rgba(255,255,255,0.92);
+    font-weight: 900;
+  }
+
+  .table-meta-sub{
+    color: var(--gray-400);
+    font-size: .84rem;
+    font-weight: 650;
+  }
+
+  .hidden{ display:none !important; }
+
+  @media (max-width: 900px){
+    .toolbar-card{
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

@@ -1,0 +1,609 @@
+---
+import type { UserRole } from '../../lib/supabase/role';
+import { normalizeRole } from '../../lib/supabase/role';
+import { getSupabaseServer } from '../../lib/supabase/supabaseServer';
+
+const role: UserRole = normalizeRole(Astro.cookies.get('userRole')?.value);
+
+const accessToken = Astro.cookies.get('auth-token')?.value;
+const cookieUserName = Astro.cookies.get('userName')?.value ?? '';
+
+const supabase = getSupabaseServer(accessToken);
+
+const channels = [
+  {
+    icon: '📞',
+    label: 'Telefon',
+    value: '+49 30 1234 5678',
+    hint: 'Mo–Fr 9–18 Uhr',
+    action: 'call',
+  },
+  {
+    icon: '✉️',
+    label: 'E-Mail',
+    value: 'support@immobilienpro.de',
+    hint: 'Antwort in ~24h',
+    action: 'mail',
+  },
+  {
+    icon: '📍',
+    label: 'Adresse',
+    value: 'Musterstraße 12, 10115 Berlin',
+    hint: 'Termin nach Absprache',
+    action: 'copy',
+  },
+];
+
+let prefillName = cookieUserName;
+let prefillEmail = '';
+
+let tenantObjektId: string | null = null;
+let tenantObjektLabel = '';
+
+const { data: auth } = await supabase.auth.getUser();
+const user = auth?.user ?? null;
+
+if (user) {
+  prefillEmail = user.email ?? '';
+
+  // =========================
+  // TENANT PREFILL (DEIN SCHEMA)
+  // profiles.id (= auth.user.id) -> mieter.profil_id -> wohneinheit_id -> wohneinheiten.objekt_id -> objekte
+  // =========================
+  if (role === 'tenant') {
+    const { data: m } = await supabase
+      .from('mieter')
+      .select('wohneinheit_id')
+      .eq('profil_id', user.id)
+      .maybeSingle();
+
+    if (m?.wohneinheit_id) {
+      const { data: w } = await supabase
+        .from('wohneinheiten')
+        .select('id, bezeichnung, objekt:objekt_id(id, bezeichnung, adresse)')
+        .eq('id', m.wohneinheit_id)
+        .maybeSingle();
+
+      const objekt = (w as any)?.objekt;
+      const objektRow = Array.isArray(objekt) ? objekt[0] : objekt;
+
+      if (objektRow?.id) {
+        tenantObjektId = String(objektRow.id);
+        tenantObjektLabel = `${objektRow.bezeichnung ?? 'Objekt'} – ${objektRow.adresse ?? ''}`.trim();
+      }
+    }
+  }
+}
+---
+
+<section class="c-contact" id="kontakt" data-role={role}>
+  <div class="container c-container">
+    <div class="c-header">
+      <div>
+        <h2 class="c-title">Kontakt</h2>
+        <p class="c-subtitle">
+          Schreiben Sie uns — wir antworten schnell. Für Standardfragen hilft der KI-Assistent sofort.
+        </p>
+      </div>
+
+      <div class="c-badges" aria-hidden="true">
+        <span class="c-badge">Schnell</span>
+        <span class="c-badge c-badge--soft">DSGVO</span>
+        <span class="c-badge c-badge--soft">Support</span>
+      </div>
+    </div>
+
+    <div class="c-grid">
+      <!-- LEFT -->
+      <div class="c-left">
+        <div class="c-card">
+          <div class="c-cardTop">
+            <div class="c-status">🟢</div>
+            <div>
+              <h3 class="c-cardTitle">ImmobilienPro Support</h3>
+              <p class="c-muted">Digital. Transparent. Schnell.</p>
+            </div>
+          </div>
+
+          <div class="c-channels">
+            {channels.map((c) => (
+              <button
+                class="c-channel"
+                type="button"
+                data-action={c.action}
+                data-value={c.value}
+                aria-label={`${c.label}: ${c.value}`}
+              >
+                <div class="c-channelIcon" aria-hidden="true">{c.icon}</div>
+                <div class="c-channelBody">
+                  <div class="c-channelTop">
+                    <span class="c-channelLabel">{c.label}</span>
+                    <span class="c-channelValue">{c.value}</span>
+                  </div>
+                  <span class="c-channelHint">{c.hint}</span>
+                </div>
+                <div class="c-channelCta" aria-hidden="true">↗</div>
+              </button>
+            ))}
+          </div>
+
+          <div class="c-mini">
+            <div class="c-miniItem">
+              <span class="c-miniK">Reaktionszeit</span>
+              <span class="c-miniV">~ 24h</span>
+            </div>
+            <div class="c-miniItem">
+              <span class="c-miniK">Notfälle</span>
+              <span class="c-miniV">Telefon</span>
+            </div>
+            <div class="c-miniItem">
+              <span class="c-miniK">Dokumente</span>
+              <span class="c-miniV">Portal</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="c-tip">
+          <div class="c-tipIcon">💡</div>
+          <div>
+            <h4 class="c-tipTitle">Tipp</h4>
+            <p class="c-tipText">
+              Für eine schnelle Bearbeitung bitte <strong>Objekt</strong> und (wenn vorhanden){' '}
+              <strong>Einheit</strong> angeben.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="c-card c-formCard">
+        <form class="c-form" id="contact-form" autocomplete="on">
+          <div class="c-formHead">
+            <h3 class="c-formTitle">Nachricht senden</h3>
+            <p class="c-muted">Wir melden uns schnellstmöglich zurück.</p>
+          </div>
+
+          <div class="c-row">
+            <label class="c-field">
+              <span class="c-label">Name</span>
+              <input class="c-input" name="name" type="text" value={prefillName} placeholder="Max Mustermann" required />
+            </label>
+
+            <label class="c-field">
+              <span class="c-label">E-Mail</span>
+              <input class="c-input" name="email" type="email" value={prefillEmail} placeholder="max@mail.de" required />
+            </label>
+          </div>
+
+          <div class="c-row">
+            <label class="c-field">
+              <span class="c-label">Thema</span>
+              <select class="c-input" name="topic" required>
+                <option value="" selected disabled>Bitte wählen…</option>
+                <option>Allgemeine Anfrage</option>
+                <option>Mietverhältnis / Vertrag</option>
+                <option>Nebenkosten / Dokumente</option>
+                <option>Mangel / Schadensmeldung</option>
+                <option>Technik / Zugang</option>
+              </select>
+            </label>
+
+            {role === 'tenant' ? (
+              <label class="c-field">
+                <span class="c-label">Objekt</span>
+                <input class="c-input" name="objekt_label" type="text" value={tenantObjektLabel || 'Objekt nicht gefunden'} readonly />
+                <input type="hidden" name="objekt_id" value={tenantObjektId ?? ''} />
+                <span class="c-hint">{tenantObjektId ? 'Automatisch zugeordnet.' : 'Bitte Support kontaktieren, falls falsch.'}</span>
+              </label>
+            ) : role === 'landlord' ? (
+              <label class="c-field">
+                <span class="c-label">Objekt</span>
+
+                <!-- ✅ ID dazu, damit wir per JS füllen können -->
+                <select class="c-input" name="objekt_id" id="objekt_id" required>
+                  <option value="" selected disabled>Objekt auswählen…</option>
+                </select>
+
+                <!-- ✅ Hint-ID dazu -->
+                <span class="c-hint" id="objekt_hint">Objekte werden geladen…</span>
+              </label>
+            ) : (
+              <label class="c-field">
+                <span class="c-label">Objekt (optional)</span>
+                <input class="c-input" name="objekt_freitext" type="text" placeholder="z. B. Musterstraße 12" />
+              </label>
+            )}
+          </div>
+
+          <label class="c-field">
+            <span class="c-label">Nachricht</span>
+            <textarea class="c-input c-textarea" name="message" rows="5" placeholder="Wobei können wir helfen?" required></textarea>
+          </label>
+
+          <label class="c-consent">
+            <input class="c-check" type="checkbox" required />
+            <span>Ich stimme der Verarbeitung meiner Daten zur Bearbeitung der Anfrage zu.</span>
+          </label>
+
+          <button class="c-submit" type="submit">
+            <span aria-hidden="true">➤</span>
+            Senden
+          </button>
+
+          <div class="c-foot">Keine sensiblen Daten senden (z. B. Ausweis, Bankdaten).</div>
+        </form>
+
+        <div class="c-toast" id="toast" role="status" aria-live="polite">
+          <span class="c-toastDot"></span>
+          <span id="toast-text">OK</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const root = document.getElementById('kontakt');
+    const role = root?.getAttribute('data-role') || 'guest';
+
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toast-text');
+    const form = document.getElementById('contact-form');
+
+    const showToast = (text) => {
+      if (!toast || !toastText) return;
+      toastText.textContent = text;
+      toast.classList.add('show');
+      window.clearTimeout(window.__toastTimer);
+      window.__toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2200);
+    };
+
+    // ✅ Channel Buttons: richtiger Selector
+    document.querySelectorAll('.c-channel').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = btn.getAttribute('data-action');
+        const value = btn.getAttribute('data-value');
+        if (!action || !value) return;
+
+        if (action === 'call') {
+          window.location.href = `tel:${value.replaceAll(' ', '')}`;
+          return;
+        }
+        if (action === 'mail') {
+          window.location.href = `mailto:${value}`;
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(value);
+          showToast('In Zwischenablage kopiert');
+        } catch {
+          showToast('Kopieren nicht möglich');
+        }
+      });
+    });
+
+    // ✅ Landlord: Objekte per API laden (wie bei wohneinheit-neu)
+    if (role === 'landlord') {
+      const select = document.getElementById('objekt_id');
+      const hint = document.getElementById('objekt_hint');
+
+      if (select) {
+        try {
+          const res = await fetch('/api/objekte', { headers: { accept: 'application/json' } });
+          if (!res.ok) throw new Error(await res.text());
+          const data = await res.json(); // [{id, bezeichnung}]
+
+          // alle Optionen außer dem Placeholder entfernen
+          select.querySelectorAll('option:not([disabled])').forEach((o) => o.remove());
+
+          if (!Array.isArray(data) || data.length === 0) {
+            if (hint) hint.textContent = 'Keine Objekte gefunden.';
+            return;
+          }
+
+          for (const o of data) {
+            const opt = document.createElement('option');
+            opt.value = String(o.id);
+            opt.textContent = o.bezeichnung ?? 'Objekt';
+            select.appendChild(opt);
+          }
+
+          if (hint) hint.textContent = 'Wählen Sie das passende Objekt.';
+        } catch (e) {
+          console.error('[contact] load objekte failed:', e);
+          if (hint) hint.textContent = 'Objekte konnten nicht geladen werden.';
+        }
+      }
+    }
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      showToast('Nachricht gesendet (Demo)');
+      form.reset();
+    });
+  });
+</script>
+
+<style>
+  .c-contact{
+    position:relative;
+    padding: calc(var(--nav-height, 72px) + 3.5rem) 0 6rem;
+    background: var(--dark);
+    overflow:hidden;
+    color: var(--white);
+  }
+  .c-contact::before{
+    content:'';
+    position:absolute; inset:0;
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 50%, #064e3b 100%);
+    opacity:.82;
+  }
+  .c-contact::after{
+    content:'';
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+    pointer-events:none;
+  }
+
+  .c-container{ position:relative; z-index:1; }
+
+  .c-header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+  }
+  .c-title{
+    margin:0 0 .35rem 0;
+    font-size:1.875rem;
+    font-weight:800;
+    letter-spacing:-0.02em;
+  }
+  .c-subtitle{ margin:0; color: var(--gray-400); max-width: 60ch; }
+
+  .c-badges{ display:flex; gap:.6rem; flex-wrap:wrap; }
+  .c-badge{
+    padding:.4rem .75rem;
+    border-radius:999px;
+    font-size:.75rem;
+    font-weight:800;
+    background: var(--primary);
+    color: var(--dark);
+  }
+  .c-badge--soft{
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.78);
+    border: 1px solid var(--dark-lighter);
+    backdrop-filter: blur(12px);
+  }
+
+  .c-grid{
+    display:grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 1.25rem;
+    align-items:start;
+  }
+
+  .c-card{
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--dark-lighter);
+    border-radius: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .c-cardTop{ display:flex; gap:.85rem; align-items:center; margin-bottom:1rem; }
+  .c-status{
+    width:2.75rem; height:2.75rem;
+    display:grid; place-items:center;
+    border-radius:.9rem;
+    background: rgba(134,239,172,0.10);
+    border: 1px solid rgba(134,239,172,0.20);
+  }
+  .c-cardTitle{ margin:0; font-weight:900; font-size:1.05rem; }
+  .c-muted{ margin:.15rem 0 0 0; color: var(--gray-400); font-size:.9rem; }
+
+  .c-channels{ display:flex; flex-direction:column; gap:.65rem; margin:1rem 0 1.1rem; }
+  .c-channel{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:.85rem;
+    padding:.85rem .95rem;
+    border-radius:1rem;
+    cursor:pointer;
+    text-align:left;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid var(--dark-lighter);
+    color: var(--white);
+    transition: all .2s ease;
+  }
+  .c-channel:hover{
+    border-color: rgba(134,239,172,0.45);
+    background: rgba(0,0,0,0.36);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 25px -10px rgba(134,239,172,0.22);
+  }
+  .c-channelIcon{
+    width:2.5rem; height:2.5rem;
+    border-radius:.9rem;
+    display:grid; place-items:center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--dark-lighter);
+    flex:0 0 auto;
+  }
+  .c-channelBody{ flex:1; min-width:0; }
+  .c-channelTop{ display:flex; justify-content:space-between; gap:.75rem; align-items:baseline; }
+  .c-channelLabel{
+    font-size:.75rem;
+    font-weight:700;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing:.05em;
+  }
+  .c-channelValue{
+    font-size:.95rem;
+    font-weight:900;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .c-channelHint{ display:block; margin-top:.2rem; color: var(--gray-600); font-size:.8rem; }
+  .c-channelCta{ font-weight:900; color: var(--primary); opacity:.9; }
+
+  .c-mini{ display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; }
+  .c-miniItem{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--dark-lighter);
+    border-radius: 1rem;
+    padding: .75rem .85rem;
+  }
+  .c-miniK{
+    display:block;
+    font-size:.75rem;
+    font-weight:800;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing:.06em;
+    margin-bottom:.15rem;
+  }
+  .c-miniV{ font-weight:900; }
+
+  .c-tip{
+    margin-top:1rem;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--dark-lighter);
+    border-radius: 1.5rem;
+    padding: 1.25rem;
+    display:flex;
+    gap:.9rem;
+  }
+  .c-tipIcon{
+    width:2.5rem; height:2.5rem;
+    border-radius:.9rem;
+    display:grid; place-items:center;
+    background: rgba(134,239,172,0.10);
+    border: 1px solid rgba(134,239,172,0.20);
+    flex:0 0 auto;
+  }
+  .c-tipTitle{ margin:0; font-weight:900; }
+  .c-tipText{ margin:.25rem 0 0 0; color: var(--gray-400); line-height:1.5; }
+
+  .c-formHead{ margin-bottom: 1rem; }
+  .c-formTitle{ margin:0 0 .25rem 0; font-size:1.15rem; font-weight:900; }
+  .c-row{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:1rem;
+    margin-top:1rem;
+  }
+  .c-label{
+    display:block;
+    font-size:.75rem;
+    font-weight:600;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing:.05em;
+    margin-bottom:.5rem;
+  }
+  .c-input{
+    width:100%;
+    padding:.875rem 1rem;
+    background: rgba(0,0,0,0.30);
+    border: 1px solid var(--dark-lighter);
+    border-radius: .75rem;
+    color: var(--white);
+    font-size:1rem;
+    transition: all .2s ease;
+  }
+  .c-input:focus{
+    outline:none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(134,239,172,0.12);
+  }
+  .c-textarea{ resize: vertical; }
+  .c-hint{ display:block; margin-top:.45rem; font-size:.78rem; color: var(--gray-600); }
+
+  .c-consent{
+    display:flex;
+    gap:.65rem;
+    margin-top:1rem;
+    color: var(--gray-400);
+    font-size:.875rem;
+    align-items:flex-start;
+  }
+  .c-check{ margin-top:.2rem; width:1.05rem; height:1.05rem; accent-color: var(--primary); }
+
+  .c-submit{
+    width:100%;
+    margin-top:1.1rem;
+    padding:1rem;
+    border:none;
+    border-radius:.75rem;
+    background: var(--primary);
+    color: var(--dark);
+    font-weight:900;
+    font-size:1rem;
+    cursor:pointer;
+    transition: all .2s ease;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.6rem;
+  }
+  .c-submit:hover{
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 25px -5px rgba(134,239,172,0.25);
+  }
+
+  .c-foot{
+    margin-top:.85rem;
+    text-align:center;
+    color: var(--gray-600);
+    font-size:.82rem;
+  }
+
+  .c-formCard{ position:relative; }
+  .c-toast{
+    position:absolute;
+    left:1rem;
+    bottom:1rem;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid var(--dark-lighter);
+    backdrop-filter: blur(14px);
+    border-radius: 999px;
+    padding:.55rem .85rem;
+    display:flex;
+    gap:.55rem;
+    align-items:center;
+    opacity:0;
+    transform: translateY(8px);
+    pointer-events:none;
+    transition: all .2s ease;
+  }
+  .c-toast.show{ opacity:1; transform: translateY(0); }
+  .c-toastDot{
+    width:.6rem; height:.6rem;
+    border-radius:50%;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px rgba(134,239,172,0.12);
+  }
+
+  @media (max-width: 920px){
+    .c-grid{ grid-template-columns: 1fr; }
+    .c-header{ flex-direction:column; align-items:flex-start; }
+  }
+  @media (max-width: 640px){
+    .c-row{ grid-template-columns: 1fr; }
+    .c-contact{ padding: calc(var(--nav-height, 72px) + 2.5rem) 0 4.5rem; }
+    .c-card{ padding:1.25rem; }
+    .c-tip{ padding:1.25rem; }
+  }
+</style>

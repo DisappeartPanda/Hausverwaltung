@@ -1,174 +1,371 @@
 ---
+export const prerender = false;
+
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import { requireLandlordSession } from '../../lib/supabase/serverAuth';
+
+// ✅ Script wird von Vite gebundelt und als URL verfügbar gemacht
+import einheitNeuScript from '../../scripts/wohneinheit-neu.client.ts?url';
+
+const auth = await requireLandlordSession(Astro);
+if (auth instanceof Response) return auth;
+
+const { user } = auth;
+
+const preObjekt = Astro.url.searchParams.get('objekt') ?? '';
 ---
 
 <DashboardLayout title="Neue Wohneinheit">
-  <div class="mb-6">
-    <a href="/wohneinheiten" class="text-gray-600 hover:text-gray-800 text-sm">← Zurück zu Wohneinheiten</a>
-  </div>
-  
-  <h1 class="text-2xl font-bold mb-6">Neue Wohneinheit anlegen</h1>
-  
-  <form id="einheit-form" class="max-w-2xl bg-white rounded-lg shadow p-6 space-y-6">
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Objekt *</label>
-      <select name="objekt_id" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-        <option value="">Bitte wählen...</option>
-      </select>
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Bezeichnung *</label>
-      <input name="bezeichnung" type="text" required placeholder="z.B. 1. OG links"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Türbezeichnung</label>
-      <input name="tuerbezeichnung" type="text" placeholder="z.B. Wohnung 3"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-    </div>
-    
-    <div class="grid grid-cols-3 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Wohnfläche (m²)</label>
-        <input name="wohnflaeche_m2" type="number" step="0.01"
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Nutzfläche (m²)</label>
-        <input name="nutzflaeche_m2" type="number" step="0.01"
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Zimmer</label>
-        <input name="zimmeranzahl" type="number"
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-      </div>
-    </div>
-    
-    <div class="grid grid-cols-2 gap-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Kaltmiete (€) *</label>
-        <input name="kaltmiete" type="number" step="0.01" required
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Nebenkosten Vorauszahlung (€)</label>
-        <input name="nebenkosten_vorauszahlung" type="number" step="0.01" value="0"
-          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-      </div>
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Kaution (Monate)</label>
-      <input name="kaution_monate" type="number" value="3" min="0" max="6"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Status</label>
-      <select name="status" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-        <option value="frei">Frei</option>
-        <option value="vermietet">Vermietet</option>
-        <option value="reserviert">Reserviert</option>
-        <option value="renovierung">In Renovierung</option>
-      </select>
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Ausstattung (komma-getrennt)</label>
-      <input name="ausstattung" type="text" placeholder="z.B. Balkon, Einbauküche, Badewanne"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
-    </div>
-    
-    <div>
-      <label class="block text-sm font-medium text-gray-700">Notizen</label>
-      <textarea name="notizen" rows="3"
-        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
-    </div>
-    
-    <div class="flex gap-4 pt-4">
-      <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-        Speichern
-      </button>
-      <a href="/wohneinheiten" class="px-6 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
-        Abbrechen
-      </a>
-    </div>
-    
-    <div id="error-message" class="hidden p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm"></div>
-  </form>
+
+<section class="page">
+
+<header class="header">
+
+<a href={preObjekt ? `/objekte/${preObjekt}` : '/wohneinheiten'} class="back">
+← Zurück
+</a>
+
+<h1 class="title">Neue Wohneinheit</h1>
+
+<p class="subtitle">
+Lege eine neue Einheit an und verknüpfe sie mit einem Objekt.
+</p>
+
+</header>
+
+
+<form id="einheit-form" class="card form">
+
+<div class="grid">
+
+<!-- Objekt -->
+
+<div class="field full">
+
+{preObjekt ? (
+
+<div class="lockedRow">
+
+<div class="lockedPill" id="lockedObjektPill">
+
+<span class="dot"></span>
+
+<span class="lockedText">
+Objekt wird geladen…
+</span>
+
+</div>
+
+<input
+type="hidden"
+id="objektLocked"
+name="objekt_id_locked"
+value={preObjekt}
+/>
+
+</div>
+
+) : (
+
+<select name="objekt_id" id="objekt_id" required>
+<option value="">Bitte wählen…</option>
+</select>
+
+)}
+
+</div>
+
+
+<!-- Bezeichnung -->
+
+<div class="field full">
+
+<label>Bezeichnung *</label>
+
+<input
+name="bezeichnung"
+type="text"
+required
+placeholder="z.B. 1. OG links"
+/>
+
+</div>
+
+
+<!-- Typ -->
+
+<div class="field">
+
+<label>Typ</label>
+
+<select name="typ">
+
+<option value="wohnung">Wohnung</option>
+
+<option value="gewerbe">Gewerbe</option>
+
+<option value="garage">Garage</option>
+
+<option value="stellplatz">Stellplatz</option>
+
+</select>
+
+</div>
+
+
+<!-- Tür -->
+
+<div class="field">
+
+<label>Türbezeichnung</label>
+
+<input
+name="tuerbezeichnung"
+type="text"
+placeholder="z.B. Wohnung 3"
+/>
+
+</div>
+
+
+<!-- Wohnfläche -->
+
+<div class="field">
+
+<label>Wohnfläche (m²)</label>
+
+<input
+name="wohnflaeche_qm"
+type="number"
+step="0.01"
+placeholder="z.B. 85"
+/>
+
+</div>
+
+
+<!-- Zimmer -->
+
+<div class="field">
+
+<label>Zimmer</label>
+
+<input
+name="zimmer_anzahl"
+type="number"
+placeholder="z.B. 3"
+/>
+
+</div>
+
+
+<!-- Kaltmiete -->
+
+<div class="field">
+
+<label>Kaltmiete (€) *</label>
+
+<input
+name="kaltmiete"
+type="number"
+step="0.01"
+required
+placeholder="z.B. 850"
+/>
+
+</div>
+
+
+<!-- Nebenkosten -->
+
+<div class="field">
+
+<label>Nebenkosten (€)</label>
+
+<input
+name="nebenkosten_vorauszahlung"
+type="number"
+step="0.01"
+placeholder="z.B. 150"
+/>
+
+</div>
+
+
+<!-- Status -->
+
+<div class="field full">
+
+<label>Status</label>
+
+<select name="status">
+
+<option value="frei">Frei</option>
+
+<option value="vermietet">Vermietet</option>
+
+<option value="reserviert">Reserviert</option>
+
+<option value="renovierung">In Renovierung</option>
+
+</select>
+
+</div>
+
+
+</div>
+
+
+<div class="actions">
+
+<button type="submit" class="btn primary">
+Speichern
+</button>
+
+</div>
+
+
+<div id="error-message" class="error hidden"></div>
+
+</form>
+
+</section>
+
 </DashboardLayout>
 
-<script>
-  import { supabase } from '../../lib/supabase';
-  
-  // Objekte laden für Dropdown
-  const loadObjekte = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    
-    const { data: vermieter } = await supabase
-      .from('vermieter')
-      .select('id')
-      .eq('user_id', session.user.id)
-      .single();
-    
-    if (!vermieter) return;
-    
-    const { data: objekte } = await supabase
-      .from('objekte')
-      .select('id, bezeichnung')
-      .eq('vermieter_id', vermieter.id)
-      .order('bezeichnung');
-    
-    const select = document.querySelector('select[name="objekt_id"]') as HTMLSelectElement;
-    objekte?.forEach(obj => {
-      const option = document.createElement('option');
-      option.value = obj.id;
-      option.textContent = obj.bezeichnung;
-      select.appendChild(option);
-    });
-  };
-  
-  loadObjekte();
-  
-  // Formular-Handler
-  const form = document.getElementById('einheit-form');
-  const errorMsg = document.getElementById('error-message');
-  
-  form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    errorMsg!.classList.add('hidden');
-    
-    const formData = new FormData(e.target as HTMLFormElement);
-    
-    const ausstattungStr = formData.get('ausstattung') as string;
-    const ausstattung = ausstattungStr ? ausstattungStr.split(',').map(s => s.trim()).filter(s => s) : [];
-    
-    const { error } = await supabase
-      .from('wohneinheiten')
-      .insert({
-        objekt_id: formData.get('objekt_id'),
-        bezeichnung: formData.get('bezeichnung'),
-        tuerbezeichnung: formData.get('tuerbezeichnung') || null,
-        wohnflaeche_m2: formData.get('wohnflaeche_m2') ? parseFloat(formData.get('wohnflaeche_m2') as string) : null,
-        nutzflaeche_m2: formData.get('nutzflaeche_m2') ? parseFloat(formData.get('nutzflaeche_m2') as string) : null,
-        zimmeranzahl: formData.get('zimmeranzahl') ? parseInt(formData.get('zimmeranzahl') as string) : null,
-        kaltmiete: parseFloat(formData.get('kaltmiete') as string),
-        nebenkosten_vorauszahlung: parseFloat(formData.get('nebenkosten_vorauszahlung') as string) || 0,
-        kaution_monate: parseInt(formData.get('kaution_monate') as string) || 3,
-        status: formData.get('status'),
-        ausstattung: ausstattung.length > 0 ? ausstattung : null,
-        notizen: formData.get('notizen') || null,
-      });
-    
-    if (error) {
-      errorMsg!.textContent = 'Fehler: ' + error.message;
-      errorMsg!.classList.remove('hidden');
-    } else {
-      window.location.href = '/wohneinheiten';
-    }
-  });
-</script>
+
+<script type="module" src={einheitNeuScript}></script>
+
+<style>
+
+.page{
+display:flex;
+flex-direction:column;
+gap:20px;
+}
+
+.header{
+display:flex;
+flex-direction:column;
+gap:6px;
+}
+
+.title{
+font-size:1.6rem;
+font-weight:800;
+}
+
+.subtitle{
+color:#9ca3af;
+}
+
+.back{
+color:#9ca3af;
+text-decoration:none;
+font-weight:700;
+}
+
+.card{
+padding:20px;
+border-radius:20px;
+background:rgba(15,20,18,.8);
+border:1px solid rgba(255,255,255,.08);
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:14px;
+}
+
+.full{
+grid-column:1 / -1;
+}
+
+.field{
+display:flex;
+flex-direction:column;
+gap:6px;
+}
+
+label{
+font-weight:700;
+color:#d1d5db;
+}
+
+input,select{
+padding:10px;
+border-radius:12px;
+border:1px solid rgba(255,255,255,.1);
+background:rgba(0,0,0,.2);
+color:white;
+}
+
+.actions{
+margin-top:16px;
+}
+
+.btn{
+padding:10px 16px;
+border-radius:10px;
+font-weight:700;
+}
+
+.primary{
+background:#22c55e;
+color:black;
+}
+
+.error{
+margin-top:10px;
+padding:10px;
+background:#7f1d1d;
+border-radius:8px;
+}
+
+.hidden{
+display:none;
+}
+
+.lockedRow{
+display:flex;
+align-items:center;
+gap:10px;
+}
+
+/* ---- Locked Objekt Pill: mehr Kontrast & Lesbarkeit ---- */
+
+.lockedPill{
+  background: rgba(34,197,94,.18);           /* etwas satter */
+  border: 1px solid rgba(34,197,94,.55);      /* stärkere Kontur */
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.35) inset,
+    0 10px 30px rgba(0,0,0,.35),
+    0 0 18px rgba(34,197,94,.22);             /* leichter Glow */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.lockedText{
+  color: rgba(236,253,245,.98);               /* fast-white mit grünem Touch */
+  font-weight: 800;
+  letter-spacing: .2px;
+  text-shadow:
+    0 1px 0 rgba(0,0,0,.55),
+    0 0 10px rgba(34,197,94,.18);
+}
+
+.dot{
+  width: 10px;
+  height: 10px;
+  background: #22c55e;
+  box-shadow: 0 0 10px rgba(34,197,94,.55);
+}
+
+/* Optional: bessere Pill-Form/Spacing */
+.lockedPill{
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+</style>

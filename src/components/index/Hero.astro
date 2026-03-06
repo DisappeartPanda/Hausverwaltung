@@ -1,0 +1,349 @@
+---
+import HeroCard from './HeroCard.astro';
+import Stats from './Stats.astro';
+
+type Role = 'guest' | 'tenant' | 'landlord';
+
+const cookieRole = Astro.cookies.get('userRole')?.value;
+const urlRole = Astro.url.searchParams.get('role');
+
+/* Type Guard */
+function isValidRole(role: unknown): role is Role {
+  return role === 'guest' || role === 'tenant' || role === 'landlord';
+}
+
+/* Priorität: URL > Cookie > Default */
+let userRole: Role = 'guest';
+
+if (isValidRole(urlRole)) {
+  userRole = urlRole;
+} else if (isValidRole(cookieRole)) {
+  userRole = cookieRole;
+}
+
+const tenantPrimaryHref = '/mieter-portal';
+---
+
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-left">
+        <div class="hero-badge">
+          <span class="badge-dot" aria-hidden="true"></span>
+          <span>Mit KI-Assistent 24/7 für Sie da</span>
+        </div>
+
+        <h1 class="hero-title">
+          {userRole === 'guest' && 'Professionelle '}
+          {userRole !== 'guest' && 'Willkommen zurück, '}
+          <span>
+            {userRole === 'guest' && 'Hausverwaltung'}
+            {userRole === 'landlord' && 'Vermieter'}
+            {userRole === 'tenant' && 'Mieter'}
+          </span>
+          {userRole === 'guest' && ' mit KI-Unterstützung'}
+        </h1>
+
+        <p class="hero-desc">
+          {userRole === 'guest' &&
+            'Wir verwalten Ihre Immobilien effizient und digital. Unser KI-Assistent beantwortet Fragen rund um die Uhr – für Eigentümer und Mieter.'}
+          {userRole === 'landlord' &&
+            'Verwalten Sie Ihre Immobilien digital und effizient. Alle Abrechnungen, Mieter und Wartungen auf einen Blick.'}
+          {userRole === 'tenant' &&
+            'Ihr persönlicher Mieterbereich – Mängel melden, Dokumente einsehen und direkt mit der Verwaltung kommunizieren.'}
+        </p>
+
+        {userRole === 'guest' && (
+          <div class="hero-features">
+            <div class="hero-feature">
+              <div class="hero-feature-icon">✓</div>
+              <span>Digitale Mietverwaltung</span>
+            </div>
+            <div class="hero-feature">
+              <div class="hero-feature-icon">✓</div>
+              <span>24/7 KI-Support</span>
+            </div>
+            <div class="hero-feature">
+              <div class="hero-feature-icon">✓</div>
+              <span>Automatische Abrechnungen</span>
+            </div>
+            <div class="hero-feature">
+              <div class="hero-feature-icon">✓</div>
+              <span>Instandhaltungsmanagement</span>
+            </div>
+          </div>
+        )}
+
+        <div class="hero-buttons">
+          {userRole === 'guest' ? (
+            <>
+              <a href="/registrieren" class="hero-btn hero-btn-primary">
+                <span aria-hidden="true">🚀</span>
+                <span>Jetzt registrieren</span>
+              </a>
+
+              <a href="/login" class="hero-btn hero-btn-ghost">
+                Anmelden
+              </a>
+            </>
+          ) : (
+            <>
+              {userRole === 'landlord' ? (
+                <a href="/dashboard" class="hero-btn hero-btn-primary">
+                  <span aria-hidden="true">📊</span>
+                  <span>Zum Dashboard</span>
+                </a>
+              ) : (
+                <a href={tenantPrimaryHref} class="hero-btn hero-btn-primary">
+                  <span aria-hidden="true">👤</span>
+                  <span>Mein Profil</span>
+                </a>
+              )}
+
+              <button type="button" onclick="logout()" class="hero-btn hero-btn-ghost">
+                Abmelden
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <HeroCard userRole={userRole} />
+    </div>
+  </div>
+</section>
+
+<Stats />
+
+<script is:inline>
+  function switchTab(role) {
+    const ownerServices = document.getElementById('owner-services');
+    const tenantServices = document.getElementById('tenant-services');
+    const tabs = document.querySelectorAll('.role-tab');
+
+    if (!ownerServices || !tenantServices) return;
+
+    if (role === 'owner') {
+      ownerServices.style.display = 'flex';
+      tenantServices.style.display = 'none';
+      tabs[0]?.classList.add('active');
+      tabs[1]?.classList.remove('active');
+    } else {
+      ownerServices.style.display = 'none';
+      tenantServices.style.display = 'flex';
+      tabs[0]?.classList.remove('active');
+      tabs[1]?.classList.add('active');
+    }
+  }
+
+  window.switchTab = switchTab;
+
+  function logout() {
+    document.cookie = 'userRole=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    localStorage.removeItem('user');
+    window.location.href = '/';
+  }
+
+  window.logout = logout;
+</script>
+
+<style>
+  .hero{
+    min-height: 95vh;
+    position: relative;
+    display: flex;
+  align-items: flex-start;
+    padding: calc(var(--nav-height, 72px) + 3.5rem) 0 4rem;
+    overflow: hidden;
+
+    /* Register-like Gradient */
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 50%, #064e3b 100%);
+  }
+
+  /* Grid pattern wie Register */
+  .hero::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+    pointer-events:none;
+    opacity: .9;
+  }
+
+  /* Background image bleibt */
+  .hero-bg{
+    position:absolute;
+    inset:0;
+    background: url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&q=80') center/cover;
+    opacity: .14;
+    filter: saturate(1.05) contrast(1.05);
+  }
+
+  .hero-card {
+    transform: translateY(-4rem);
+}
+
+  .hero-content{
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: clamp(2rem, 4vw, 4rem);
+    align-items: center;
+  }
+
+  .hero-left{ color: var(--white); }
+
+  /* Badge wie Register (role-badge look) */
+.hero-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .5rem 1rem;
+  border-radius: 999px;
+  font-size: .85rem;
+  font-weight: 600;
+
+  background: rgba(134, 239, 172, 0.12);
+  border: 1px solid rgba(134, 239, 172, 0.25);
+  color: var(--primary);
+
+  backdrop-filter: blur(14px);
+  box-shadow: 0 0 0 1px rgba(134,239,172,0.08),
+              0 8px 30px rgba(134,239,172,0.08);
+
+  margin-bottom: 1.25rem;
+}
+
+  .badge-dot{
+    width: .55rem;
+    height: .55rem;
+    border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px rgba(134,239,172,0.14);
+    flex: 0 0 auto;
+  }
+
+  .hero-title{
+    font-size: clamp(2.25rem, 4.1vw, 3.6rem);
+    font-weight: 850;
+    line-height: 1.08;
+    margin-bottom: 1.25rem;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-title span{ color: var(--primary); }
+
+  .hero-desc{
+    font-size: 1.125rem;
+    color: rgba(255,255,255,0.72);
+    margin-bottom: 1.75rem;
+    max-width: 560px;
+  }
+
+  .hero-features{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+    margin-bottom: 2rem;
+  }
+
+  .hero-feature{
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    color: rgba(255,255,255,0.80);
+    font-size: .95rem;
+
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: .7rem .85rem;
+    border-radius: 1rem;
+    backdrop-filter: blur(12px);
+  }
+
+  .hero-content > :last-child {
+    transform: translateY(-1rem);
+}
+
+  .hero-feature-icon{
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(134,239,172,0.18);
+    color: var(--primary);
+    border: 1px solid rgba(134,239,172,0.22);
+    font-size: .75rem;
+    flex-shrink: 0;
+  }
+
+  .hero-buttons{
+    display: flex;
+    gap: .9rem;
+    flex-wrap: wrap;
+  }
+
+  /* Buttons: wie Register */
+  .hero-btn{
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .85rem 1.25rem;
+    border-radius: .9rem;
+    font-weight: 850;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all .2s ease;
+    font-size: .95rem;
+  }
+
+  .hero-btn-primary{
+    background: var(--primary);
+    color: var(--dark);
+    border-color: rgba(134,239,172,0.45);
+  }
+
+  .hero-btn-primary:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 12px 32px rgba(134,239,172,0.18);
+  }
+
+  .hero-btn-ghost{
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.92);
+    border-color: rgba(255,255,255,0.12);
+    backdrop-filter: blur(14px);
+  }
+
+  .hero-btn-ghost:hover{
+    background: rgba(255,255,255,0.09);
+    border-color: rgba(134,239,172,0.25);
+    transform: translateY(-1px);
+  }
+
+  /* Button als <button> soll gleich aussehen */
+  button.hero-btn{
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+
+  @media (max-width: 1024px){
+    .hero-content{
+      grid-template-columns: 1fr;
+      gap: 2.25rem;
+    }
+  }
+
+  @media (max-width: 768px){
+    .hero-features{ grid-template-columns: 1fr; }
+  }
+</style>

@@ -1,0 +1,303 @@
+---
+import TeamCard from './TeamCard.astro';
+
+type TeamMember = {
+  name: string;
+  role: string;
+  description: string;
+  image: string;
+  socials?: { phone?: string; email?: string; linkedin?: string };
+};
+
+// Beispiel-Daten (hier fügst du Mitarbeiter hinzu)
+const team: TeamMember[] = [
+  {
+    name: 'Max Mustermann',
+    role: 'Hausverwaltung',
+    description: 'Ihr Ansprechpartner für Verwaltung, Abrechnung und Objektbetreuung.',
+    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&q=80&auto=format&fit=crop',
+    socials: { phone: '#', email: '#', linkedin: '#' }
+  },
+  {
+    name: 'Lisa Beispiel',
+    role: 'Instandhaltung',
+    description: 'Koordiniert Handwerker, Wartungen und Reparaturen effizient.',
+    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=800&q=80&auto=format&fit=crop',
+    socials: { phone: '#', email: '#', linkedin: '#' }
+  },
+  {
+    name: 'Tom Muster',
+    role: 'Support',
+    description: 'Schnelle Hilfe bei Fragen, Prozessen und digitaler Abwicklung.',
+    image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80&auto=format&fit=crop',
+    socials: { email: '#' }
+  },
+  // Weitere Mitarbeiter einfach hier als Objekt hinzufügen …
+];
+
+const total = team.length;
+---
+
+<section class="team" id="team">
+  <div class="container">
+    <div class="head">
+      <h2 class="title">Unser Team</h2>
+      <p class="subtitle">Ihre Ansprechpartner – schnell, kompetent, digital.</p>
+    </div>
+
+    <div class="carousel" data-total={total}>
+      <div class="viewport" id="teamViewport">
+        <div class="rail" id="teamRail">
+          {team.map((member, idx) => (
+            <div class="slide" data-index={idx}>
+              <TeamCard {...member} />
+            </div>
+          ))}
+        </div>
+
+        <button class="nav prev" type="button" aria-label="Zurück" id="teamPrev">‹</button>
+        <button class="nav next" type="button" aria-label="Weiter" id="teamNext">›</button>
+      </div>
+
+      <div class="dots" id="teamDots" aria-label="Team Navigation"></div>
+    </div>
+  </div>
+</section>
+
+<script is:inline>
+  const viewport = document.getElementById('teamViewport');
+  const rail = document.getElementById('teamRail');
+  const prev = document.getElementById('teamPrev');
+  const next = document.getElementById('teamNext');
+  const dotsWrap = document.getElementById('teamDots');
+
+  if (!viewport || !rail || !prev || !next || !dotsWrap) {
+    console.warn('[TEAM] Carousel: Elemente fehlen');
+  } else {
+    const slides = Array.from(rail.querySelectorAll('.slide'));
+    const total = slides.length;
+
+    // 3 sichtbar am Desktop, 2 am Tablet, 1 am Mobile (per CSS + JS calc)
+    const perView = () => {
+      const w = window.innerWidth;
+      if (w <= 640) return 1;
+      if (w <= 1024) return 2;
+      return 3;
+    };
+
+    let page = 0;
+    const maxPage = () => Math.max(0, Math.ceil(total / perView()) - 1);
+
+    // Dots bauen
+    const buildDots = () => {
+      dotsWrap.innerHTML = '';
+      const pages = maxPage() + 1;
+      for (let i = 0; i < pages; i++) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'dot' + (i === page ? ' active' : '');
+        b.setAttribute('aria-label', 'Seite ' + (i + 1));
+        b.addEventListener('click', () => {
+          page = i;
+          render();
+        });
+        dotsWrap.appendChild(b);
+      }
+    };
+
+    const setGlow = () => {
+      slides.forEach(s => s.classList.remove('glow'));
+
+      if (total === 0) return;
+
+      // Wenn weniger als 3 Karten existieren -> neueste (letzte) glowt
+      if (total < 3) {
+        slides[total - 1]?.classList.add('glow');
+        return;
+      }
+
+      // sonst: mittlere der sichtbaren 3 glowt
+      const visible = perView();
+      const start = page * visible;
+      const mid = start + Math.min(1, visible - 1); // bei 3 -> +1; bei 2 -> +1 (zweite)
+      slides[mid]?.classList.add('glow');
+    };
+
+    const render = () => {
+      // clamp page
+      const mp = maxPage();
+      if (page > mp) page = mp;
+
+      // rail bewegen (pro Seite 100% vom viewport)
+      rail.style.transform = `translateX(${-page * 100}%)`;
+
+      // Buttons disable
+      prev.disabled = page <= 0;
+      next.disabled = page >= mp;
+
+      // Dots active
+      Array.from(dotsWrap.querySelectorAll('.dot')).forEach((d, i) => {
+        d.classList.toggle('active', i === page);
+      });
+
+      setGlow();
+    };
+
+    const onResize = () => {
+      buildDots();
+      render();
+    };
+
+    prev.addEventListener('click', () => { page = Math.max(0, page - 1); render(); });
+    next.addEventListener('click', () => { page = Math.min(maxPage(), page + 1); render(); });
+
+    window.addEventListener('resize', onResize, { passive: true });
+
+    // init
+    buildDots();
+    render();
+  }
+</script>
+
+<style>
+  .team{
+    padding: 6rem 0;
+    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-light) 60%, #064e3b 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .team::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+    pointer-events:none;
+  }
+
+  .container{ position:relative; z-index:1; }
+
+  .head{
+    max-width: 650px;
+    margin: 0 auto 2rem;
+    text-align:center;
+  }
+
+  .title{
+    color: var(--white);
+    font-size: clamp(1.8rem, 2.6vw, 2.4rem);
+    font-weight: 800;
+    margin: 0 0 .5rem;
+  }
+
+  .subtitle{
+    margin: 0;
+    color: rgba(255,255,255,0.70);
+    font-size: 1rem;
+  }
+
+  .carousel{
+    margin-top: 2rem;
+  }
+
+  .viewport{
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.75rem;
+    border: 2px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(18px);
+    padding: 1.25rem;
+  }
+
+  /* WICHTIG: wirklich horizontal erzwingen */
+  .rail{
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 1rem;
+    width: 100%;
+    will-change: transform;
+    transition: transform .45s ease;
+  }
+
+  /* Jede "Seite" ist 100% breit; innerhalb zeigt sie 3 Karten */
+  .slide{
+    flex: 0 0 33.3333%;
+    min-width: 33.3333%;
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+
+  /* Glow */
+  .slide.glow :global(.team-card){
+    box-shadow:
+      0 0 0 1px rgba(134,239,172,0.35),
+      0 20px 60px rgba(134,239,172,0.18);
+    border-color: rgba(134,239,172,0.55);
+    transform: translateY(-2px);
+  }
+
+  /* Pfeile: mittig auf Kartenhöhe */
+  .nav{
+    position:absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.35);
+    color: var(--white);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: 26px;
+    line-height: 1;
+    backdrop-filter: blur(12px);
+    transition: all .2s ease;
+    z-index: 5;
+  }
+
+  .nav:hover{ border-color: rgba(134,239,172,0.55); }
+  .nav:disabled{ opacity: .35; cursor: not-allowed; }
+
+  .prev{ left: 10px; }
+  .next{ right: 10px; }
+
+  .dots{
+    display:flex;
+    justify-content:center;
+    gap: .5rem;
+    margin-top: 1rem;
+  }
+
+  .dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    cursor:pointer;
+    transition: all .2s ease;
+  }
+  .dot.active{
+    background: rgba(134,239,172,0.75);
+    border-color: rgba(134,239,172,0.9);
+    box-shadow: 0 0 0 3px rgba(134,239,172,0.12);
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px){
+    .slide{ flex-basis: 50%; min-width: 50%; }
+  }
+  @media (max-width: 640px){
+    .viewport{ padding: 1rem; }
+    .slide{ flex-basis: 100%; min-width: 100%; }
+    .prev{ left: 6px; }
+    .next{ right: 6px; }
+  }
+</style>
