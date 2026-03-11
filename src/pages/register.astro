@@ -1,0 +1,57 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+let error = "";
+let success = "";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const organizationName = String(formData.get("organization_name") ?? "").trim();
+
+  if (!fullName || !email || !password || !organizationName) {
+    error = "Bitte alle Felder ausfüllen.";
+  } else {
+    const { createSupabaseServerClient } = await import("../lib/supabase/server");
+    const supabase = createSupabaseServerClient(Astro.cookies);
+
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          organization_name: organizationName,
+          role: "landlord",
+        },
+      },
+    });
+
+    if (signUpError) {
+      error = signUpError.message;
+    } else {
+      success = "Registrierung erfolgreich. Bitte prüfe deine E-Mails.";
+    }
+  }
+}
+---
+
+<Layout title="Registrieren">
+  <main class="mx-auto max-w-md p-6">
+    <h1 class="mb-6 text-2xl font-bold">Registrieren</h1>
+
+    {error && <p class="mb-4 rounded bg-red-100 p-3 text-red-700">{error}</p>}
+    {success && <p class="mb-4 rounded bg-green-100 p-3 text-green-700">{success}</p>}
+
+    <form method="POST" class="space-y-4">
+      <input name="full_name" type="text" placeholder="Vollständiger Name" class="w-full rounded border p-3" />
+      <input name="organization_name" type="text" placeholder="Firmen-/Organisationsname" class="w-full rounded border p-3" />
+      <input name="email" type="email" placeholder="E-Mail" class="w-full rounded border p-3" />
+      <input name="password" type="password" placeholder="Passwort" class="w-full rounded border p-3" />
+      <button type="submit" class="w-full rounded bg-black p-3 text-white">Konto erstellen</button>
+    </form>
+  </main>
+</Layout>

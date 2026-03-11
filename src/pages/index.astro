@@ -1,0 +1,17 @@
+---
+const user = Astro.locals.user;
+---
+
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>App</title>
+  </head>
+  <body>
+    <main style="padding: 2rem; font-family: sans-serif;">
+      <h1>Willkommen in der Hausverwaltung</h1>
+      <p>Eingeloggt als: {user?.email}</p>
+      <a href="/api/logout">Logout</a>
+    </main>
+  </body>
+</html>

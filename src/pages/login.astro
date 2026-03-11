@@ -1,0 +1,40 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+let error = "";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  const { createSupabaseServerClient } = await import("../lib/supabase/server");
+  const supabase = createSupabaseServerClient(Astro.cookies);
+
+  const { error: loginError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (loginError) {
+    error = loginError.message;
+  } else {
+    return Astro.redirect("/app");
+  }
+}
+---
+
+<Layout title="Login">
+  <main class="mx-auto max-w-md p-6">
+    <h1 class="mb-6 text-2xl font-bold">Login</h1>
+
+    {error && <p class="mb-4 rounded bg-red-100 p-3 text-red-700">{error}</p>}
+
+    <form method="POST" class="space-y-4">
+      <input name="email" type="email" placeholder="E-Mail" class="w-full rounded border p-3" />
+      <input name="password" type="password" placeholder="Passwort" class="w-full rounded border p-3" />
+      <button type="submit" class="w-full rounded bg-black p-3 text-white">Einloggen</button>
+    </form>
+  </main>
+</Layout>
