@@ -1,17 +1,169 @@
 ---
-const user = Astro.locals.user;
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { ROUTES } from "../lib/constants/routes";
 ---
 
-<html lang="de">
-  <head>
-    <meta charset="utf-8" />
-    <title>App</title>
-  </head>
-  <body>
-    <main style="padding: 2rem; font-family: sans-serif;">
-      <h1>Willkommen in der Hausverwaltung</h1>
-      <p>Eingeloggt als: {user?.email}</p>
-      <a href=ROUTES.API_LOGOUT>Logout</a>
-    </main>
-  </body>
-</html>
+<MarketingLayout
+  title="ImmobilienPro | Moderne Hausverwaltung"
+  description="ImmobilienPro digitalisiert Verwaltung, Kommunikation und Prozesse für Vermieter, Verwalter und Mieter."
+>
+  <section class="section">
+    <div class="container">
+      <div class="grid-auto">
+        <div class="stack">
+          <p class="section__eyebrow">Digitale Hausverwaltung</p>
+          <h1>Verwalte Immobilien, Mieter und Prozesse an einem Ort</h1>
+          <p>
+            ImmobilienPro bringt Vermieter, Verwalter und Mieter in einer
+            modernen Plattform zusammen – mit klaren Prozessen, besserer
+            Kommunikation und weniger Verwaltungsaufwand.
+          </p>
+
+          <div class="row">
+            <a href={ROUTES.AUTH_REGISTER} class="button button--primary">
+              Jetzt starten
+            </a>
+            <a href="/pricing" class="button button--secondary">
+              Preise ansehen
+            </a>
+          </div>
+
+          <div class="row">
+            <span class="badge">Objekte verwalten</span>
+            <span class="badge">Mieter anbinden</span>
+            <span class="badge badge--accent">Prozesse digitalisieren</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel__body stack">
+            <p class="section__eyebrow">Übersicht</p>
+            <h2>Alle wichtigen Bereiche zentral gebündelt</h2>
+            <ul>
+              <li>Objekte und Wohneinheiten zentral verwalten</li>
+              <li>Mieterkommunikation strukturiert abbilden</li>
+              <li>Schäden, Wartungen und Dokumente organisieren</li>
+              <li>Klare Rollen für Verwaltung und Mieter</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <header class="section__header">
+        <p class="section__eyebrow">Leistungsbereiche</p>
+        <h2>Für den Alltag in der Immobilienverwaltung gebaut</h2>
+        <p>
+          Von der Objektstruktur bis zur Kommunikation mit Mietern unterstützt
+          ImmobilienPro die wichtigsten Abläufe in einer Oberfläche.
+        </p>
+      </header>
+
+      <div class="grid-auto">
+        <article class="card card--glass card--glow">
+          <div class="card__body stack">
+            <h3>Objektmanagement</h3>
+            <p>
+              Gebäude, Einheiten und Stammdaten strukturiert erfassen und sauber
+              pflegen.
+            </p>
+          </div>
+        </article>
+
+        <article class="card card--glass card--glow">
+          <div class="card__body stack">
+            <h3>Mieterportal</h3>
+            <p>
+              Eigener Zugang für Mieter mit klarer Trennung zur
+              Verwaltungsseite.
+            </p>
+          </div>
+        </article>
+
+        <article class="card card--glass card--glow">
+          <div class="card__body stack">
+            <h3>Schäden & Wartungen</h3>
+            <p>
+              Vorgänge dokumentieren, priorisieren und transparent
+              nachvollziehen.
+            </p>
+          </div>
+        </article>
+
+        <article class="card card--glass card--glow">
+          <div class="card__body stack">
+            <h3>Dokumentenablage</h3>
+            <p>
+              Verträge, Unterlagen und Nachweise digital ablegen und schnell
+              wiederfinden.
+            </p>
+          </div>
+        </article>
+
+        <article class="card card--glass card--glow">
+          <div class="card__body stack">
+            <h3>Skalierbare Prozesse</h3>
+            <p>
+              Für einzelne Vermieter ebenso geeignet wie für wachsende
+              Verwaltungsstrukturen.
+            </p>
+          </div>
+        </article>
+
+        <article class="card card--glass card--glow">
+          <div class="card__body stack">
+            <h3>Klare Rollenlogik</h3>
+            <p>
+              Vermieter und Mieter sehen nur die Bereiche, die für sie relevant
+              sind.
+            </p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <header class="section__header">
+        <p class="section__eyebrow">Für wen?</p>
+        <h2>Passend für Verwaltung und Mieter</h2>
+      </header>
+
+      <div class="grid-auto">
+        <article class="card card--glass">
+          <div class="card__body stack">
+            <h3>Für Vermieter & Verwalter</h3>
+            <p>
+              Behalte Objekte, Einheiten, Vorgänge und Kommunikation im Blick –
+              ohne verteilte Tools und unklare Abläufe.
+            </p>
+            <div class="row">
+              <a href={ROUTES.AUTH_REGISTER} class="button button--primary">
+                Als Verwalter starten
+              </a>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--glass">
+          <div class="card__body stack">
+            <h3>Für Mieter</h3>
+            <p>
+              Eigener Zugriff auf relevante Informationen, Dokumente und
+              Meldestrecken – ohne die Verwaltungsansicht zu überladen.
+            </p>
+            <div class="row">
+              <a href={ROUTES.AUTH_REGISTER} class="button button--secondary">
+                Als Mieter registrieren
+              </a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</MarketingLayout>

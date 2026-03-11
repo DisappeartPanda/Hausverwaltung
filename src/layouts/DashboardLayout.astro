@@ -1,110 +1,54 @@
 ---
-import '../styles/global.css';
-import Navigation from '../components/index/Navigation.astro';
+import BaseLayout from "./BaseLayout.astro";
+import { ROUTES } from "../lib/constants/routes";
 
 interface Props {
-  title: string;
-  fullWidth?: boolean;
+  title?: string;
+  description?: string;
+  organizationName?: string | null;
+  userEmail?: string | null;
 }
 
-const { title, fullWidth = false } = Astro.props;
+const {
+  title = "Dashboard | ImmobilienPro",
+  description = "Verwaltungsdashboard für ImmobilienPro.",
+  organizationName = "ImmobilienPro",
+  userEmail = null,
+} = Astro.props;
 ---
 
-<!doctype html>
-<html lang="de">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title}</title>
-  </head>
+<BaseLayout title={title} description={description}>
+  <main class="page-shell">
+    <section class="section">
+      <div class="container">
+        <div class="row row--between">
+          <div class="stack">
+            <p class="section__eyebrow">Dashboard</p>
+            <h1>{organizationName}</h1>
+            {userEmail && <p>Angemeldet als {userEmail}</p>}
+          </div>
 
-  <body class:list={["layout", fullWidth && "full-width"]}>
-    <Navigation />
+          <div class="row">
+            <a href={ROUTES.APP_DASHBOARD} class="button button--secondary">
+              Dashboard
+            </a>
+            <a href={ROUTES.APP_OBJECTS} class="button button--secondary">
+              Objekte
+            </a>
+            <a href={ROUTES.APP_TENANTS} class="button button--secondary">
+              Mieter
+            </a>
+            <a href={ROUTES.APP_MAINTENANCE} class="button button--secondary">
+              Wartungen
+            </a>
+            <a href={ROUTES.API_LOGOUT} class="button button--ghost">
+              Abmelden
+            </a>
+          </div>
+        </div>
 
-    <div class="dashboard-surface">
-      <div class="ui-grid-surface">
-        <main class="main-content">
-          <slot />
-        </main>
+        <slot />
       </div>
-    </div>
-  </body>
-</html>
-
-<style>
-  /* -------------------------------------------------------
-     Surface / Background
-  ------------------------------------------------------- */
-  .dashboard-surface{
-    min-height: 100vh;
-    background: var(--dark);
-    position: relative;
-    isolation: isolate; /* eigener stacking context */
-  }
-
-  /* ✅ WICHTIG: Overlays dürfen NIE klicken blockieren */
-  .dashboard-surface::before,
-  .dashboard-surface::after{
-    pointer-events: none !important;
-    z-index: 0;
-  }
-
-  .dashboard-surface::before{
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      135deg,
-      var(--dark) 0%,
-      var(--dark-light) 50%,
-      #064e3b 100%
-    );
-    opacity: 0.8;
-  }
-
-  .dashboard-surface::after{
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 4rem 4rem;
-  }
-
-  /* -------------------------------------------------------
-     Content Layer (muss über allem liegen + klickbar)
-  ------------------------------------------------------- */
-  .ui-grid-surface{
-    position: relative;
-    z-index: 2;
-    pointer-events: auto; /* ✅ explizit klickbar */
-  }
-
-  /* Falls global.css auf ui-grid-surface Overlays nutzt: kill them */
-  .ui-grid-surface::before,
-  .ui-grid-surface::after{
-    pointer-events: none !important;
-  }
-
-  .main-content{
-    position: relative;
-    z-index: 3;
-    pointer-events: auto; /* ✅ explizit klickbar */
-
-    flex: 1;
-    overflow-y: auto;
-
-    /* Platz unter sticky/fixed Navbar */
-    padding-top: calc(var(--nav-height, 72px) + 16px);
-
-    /* du hattest 100vh — das lassen wir, aber sicher */
-    height: 100vh;
-  }
-
-  /* Sicherheitsnetz: wenn irgendwo in global.css pointer-events:none gesetzt wurde */
-  .main-content *,
-  .ui-grid-surface *{
-    pointer-events: auto;
-  }
-</style>
+    </section>
+  </main>
+</BaseLayout>

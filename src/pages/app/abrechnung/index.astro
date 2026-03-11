@@ -1,82 +1,96 @@
 ---
 import AppLayout from "../../../layouts/AppLayout.astro";
-import { MODULE_KEYS } from "../../../lib/constants/module-keys";
+import { requireLandlordSession } from "../../../lib/auth/guards";
 
-const activeModules = [
-  MODULE_KEYS.HAUSVERWALTUNG,
-  MODULE_KEYS.SONDEREIGENTUM,
-];
+const session = await requireLandlordSession(Astro);
 
-const statements = [
-  {
-    title: "Hausabrechnung 2025",
-    type: "Hausverwaltung",
-    period: "01.01.2025 – 31.12.2025",
-    status: "Abgeschlossen",
-  },
-  {
-    title: "Nebenkosten WE 3.2",
-    type: "Sondereigentum",
-    period: "01.01.2025 – 31.12.2025",
-    status: "In Prüfung",
-  },
-  {
-    title: "Rücklagenübersicht Q1 2026",
-    type: "Hausverwaltung",
-    period: "Q1 2026",
-    status: "Aktuell",
-  },
-];
+if (session instanceof Response) {
+  return session;
+}
+
+const userEmail = Astro.locals.user?.email ?? null;
 ---
 
 <AppLayout
-  title="Abrechnungen | ImmobilienPro"
-  organizationName="Musterverwaltung GmbH"
-  activeModules={activeModules}
+  title="Abrechnung | ImmobilienPro"
+  organizationName="Abrechnungen"
+  userEmail={userEmail}
 >
   <div class="stack">
-    <div class="row row--between">
-      <div class="section__header">
-        <span class="section__eyebrow">Abrechnungen</span>
-        <h1>Abrechnungen und Auswertungen</h1>
-        <p>
-          Hausabrechnungen, einheitenbezogene Auswertungen und Rücklagenberichte
-          gesammelt an einem Ort.
-        </p>
-      </div>
+    <header class="section__header">
+      <p class="section__eyebrow">Abrechnung</p>
+      <h2>Abrechnungen und finanzielle Übersichten</h2>
+      <p>
+        Verwalte Abrechnungsprozesse, behalte offene Themen im Blick und schaffe
+        eine klare Grundlage für wiederkehrende finanzielle Abläufe.
+      </p>
+    </header>
 
-      <a class="button button--primary" href="/app/abrechnungen/export">
-        Export starten
-      </a>
-    </div>
+    <section class="panel">
+      <div class="panel__body stack">
+        <div class="row row--between">
+          <h3>Finanzstatus</h3>
+          <span class="badge badge--accent">Übersicht</span>
+        </div>
 
-    <div class="stack">
-      {
-        statements.map((statement) => (
-          <article class="card card--glass card--glow">
-            <div class="card__body row row--between">
-              <div class="stack" style="gap: 0.35rem;">
-                <div class="row">
-                  <span class="badge badge--accent">{statement.status}</span>
-                  <span class="badge">{statement.type}</span>
-                </div>
-
-                <h3>{statement.title}</h3>
-                <p>{statement.period}</p>
-              </div>
-
-              <div class="row">
-                <a class="button button--secondary" href="#">
-                  Öffnen
-                </a>
-                <a class="button button--ghost" href="#">
-                  Exportieren
-                </a>
-              </div>
-            </div>
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Offene Abrechnungen</div>
+            <div class="kpi-card__value">0</div>
           </article>
-        ))
-      }
-    </div>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Abgeschlossene Perioden</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Prüfbedarf</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-auto">
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Laufende Abrechnungen</h3>
+          <p>
+            Behalte offene Abrechnungszyklen und vorbereitende Schritte in einer
+            zentralen Übersicht.
+          </p>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Dokumente & Nachweise</h3>
+          <p>
+            Verknüpfe Belege, Unterlagen und relevante Dokumente direkt mit
+            deinen finanziellen Vorgängen.
+          </p>
+          <div class="row">
+            <a href="/app/dokumente" class="button button--secondary">
+              Zu den Dokumenten
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Objektbezug</h3>
+          <p>
+            Ordne Abrechnungen sauber den passenden Objekten und Einheiten zu.
+          </p>
+          <div class="row">
+            <a href="/app/objekte" class="button button--secondary">
+              Zu den Objekten
+            </a>
+          </div>
+        </div>
+      </article>
+    </section>
   </div>
 </AppLayout>

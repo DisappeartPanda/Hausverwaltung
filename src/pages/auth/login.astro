@@ -1,7 +1,9 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
+import AuthLayout from "../../layouts/AuthLayout.astro";
 import { createServerSupabaseClient } from "../../lib/supabase/server";
 import { ROUTES } from "../../lib/constants/routes";
+import { getPostLoginRoute } from "../../lib/auth/redirects";
+import { getUserRole } from "../../lib/auth/user-role";
 
 let error = "";
 let email = "";
@@ -25,59 +27,81 @@ if (Astro.request.method === "POST") {
     if (signInError) {
       error = "Anmeldung fehlgeschlagen. Bitte prüfe deine Zugangsdaten.";
     } else {
-      return Astro.redirect(ROUTES.APP_DASHBOARD);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const role = getUserRole(user);
+
+      return Astro.redirect(getPostLoginRoute(role));
     }
   }
 }
 ---
 
-<BaseLayout title="Login | ImmobilienPro">
-  <section class="auth-shell">
-    <div class="auth-card">
-      <div class="auth-header">
-        <p class="eyebrow">Login</p>
-        <h1>Bei ImmobilienPro anmelden</h1>
-        <p class="auth-copy">
-          Melde dich mit deinem Konto an, um auf Verwaltung oder Mieterportal
-          zuzugreifen.
-        </p>
-      </div>
+<AuthLayout title="Login | ImmobilienPro">
+  <section class="section">
+    <div class="container--md">
+      <div class="card card--glass">
+        <div class="card__body stack">
+          <header class="section__header">
+            <p class="section__eyebrow">Login</p>
+            <h1>Bei ImmobilienPro anmelden</h1>
+            <p>
+              Melde dich mit deinem Konto an, um auf Verwaltung oder
+              Mieterportal zuzugreifen.
+            </p>
+          </header>
 
-      {
-        error && (
-          <div class="auth-alert auth-alert-error" role="alert">
-            {error}
+          {
+            error && (
+              <div class="panel">
+                <div class="panel__body">
+                  <p>{error}</p>
+                </div>
+              </div>
+            )
+          }
+
+          <form method="POST" class="stack">
+            <div class="input-group">
+              <label for="email" class="input-label">E-Mail</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+                value={email}
+              />
+            </div>
+
+            <div class="input-group">
+              <label for="password" class="input-label">Passwort</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+
+            <div class="row">
+              <button type="submit" class="button button--primary">
+                Anmelden
+              </button>
+              <a href={ROUTES.AUTH_REGISTER} class="button button--secondary">
+                Registrieren
+              </a>
+            </div>
+          </form>
+
+          <div class="row">
+            <a href={ROUTES.AUTH_FORGOT_PASSWORD}>Passwort vergessen?</a>
           </div>
-        )
-      }
-
-      <form method="POST" class="auth-form">
-        <label for="email">E-Mail</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autocomplete="email"
-          required
-          value={email}
-        />
-
-        <label for="password">Passwort</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          required
-        />
-
-        <button type="submit">Anmelden</button>
-      </form>
-
-      <div class="auth-links">
-        <a href={ROUTES.AUTH_FORGOT_PASSWORD}>Passwort vergessen?</a>
-        <a href={ROUTES.AUTH_REGISTER}>Registrieren</a>
+        </div>
       </div>
     </div>
   </section>
-</BaseLayout>
+</AuthLayout>

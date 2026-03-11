@@ -1,144 +1,101 @@
 ---
 import AppLayout from "../../../layouts/AppLayout.astro";
-import { MODULE_KEYS } from "../../../lib/constants/module-keys";
-import { getAppContext } from "../../../lib/utils/app-context";
-import { getDocumentListViewModel } from "../../../lib/domain/documents/document-service";
-import { requireLandlordSession } from "../../../lib/auth/guards";
+import { getUserRole } from "../../../lib/auth/user-role";
+import { ROLES } from "../../../lib/constants/roles";
+import { ROUTES } from "../../../lib/constants/routes";
 
-const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+const user = Astro.locals.user;
+const role = getUserRole(user);
 
-const session = await requireLandlordSession(Astro);
-
-if (session instanceof Response) {
-  return session;
+if (!user) {
+  return Astro.redirect(ROUTES.AUTH_LOGIN);
 }
 
-const appContext = await getAppContext(session);
-
-let documents = [];
-
-try {
-  documents = await getDocumentListViewModel(appContext.organizationId ?? "");
-} catch (error) {
-  console.error("Fehler beim Laden der Dokumente:", error);
-}
+const userEmail = user.email ?? null;
+const organizationName =
+  role === ROLES.TENANT ? "Dokumente" : "Dokumentenverwaltung";
 ---
 
 <AppLayout
   title="Dokumente | ImmobilienPro"
-  organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
-  userEmail={session.email}
+  organizationName={organizationName}
+  userEmail={userEmail}
 >
   <div class="stack">
-    <div class="row row--between">
-      <div class="section__header">
-        <span class="section__eyebrow">Dokumente</span>
-        <h1>Dokumente zentral verwalten</h1>
-        <p>
-          Verträge, Abrechnungen und weitere Unterlagen für Mieter und Einheiten
-          an einem Ort.
-        </p>
+    <header class="section__header">
+      <p class="section__eyebrow">Dokumente</p>
+      <h2>Dokumente sicher und strukturiert verwalten</h2>
+      <p>
+        Verwalte Verträge, Nachweise, Abrechnungen und weitere Unterlagen
+        digital an einem Ort.
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="panel__body stack">
+        <div class="row row--between">
+          <h3>Dokumentenübersicht</h3>
+          <span class="badge">Ablage</span>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Gespeicherte Dokumente</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Freigegeben</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Offene Zuordnungen</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+        </div>
       </div>
+    </section>
 
-      <a class="button button--primary" href="/app/dokumente/hochladen">
-        Dokument hochladen
-      </a>
-    </div>
+    <section class="grid-auto">
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Verträge & Unterlagen</h3>
+          <p>
+            Halte Mietverträge, Zusatzvereinbarungen und allgemeine Dokumente
+            sauber organisiert.
+          </p>
+        </div>
+      </article>
 
-    {
-      documents.length === 0 ? (
-        <section class="card card--glass">
-          <div class="card__body stack">
-            <span class="badge">Noch keine Dokumente</span>
-            <h3>Lade dein erstes Dokument hoch</h3>
-            <p>
-              Hochgeladene Dokumente erscheinen hier automatisch in deiner Übersicht.
-            </p>
-            <a class="button button--primary" href="/app/dokumente/hochladen">
-              Erstes Dokument hochladen
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Freigaben für Mieter</h3>
+          <p>
+            Steuere, welche Dokumente im Mieterbereich sichtbar sein sollen.
+          </p>
+          <div class="row">
+            <a href=ROUTES.APP_TENANT_HOME class="button button--secondary">
+              Mieterbereich ansehen
             </a>
           </div>
-        </section>
-      ) : (
-        <div class="stack">
-          {
-            documents.map((document) => (
-              <article class="card card--glass card--glow">
-                <div class="card__body row row--between">
-                  <div class="stack" style="gap: 0.35rem;">
-                    <div class="row">
-                      <span class="badge badge--accent">{document.categoryLabel}</span>
-                      <span class="badge">{document.targetLabel}</span>
-                    </div>
-
-                    <h3>{document.title}</h3>
-                    <p>{document.fileName}</p>
-                    <p>{document.fileSizeLabel}</p>
-                  </div>
-
-                  <div class="row">
-                    <button
-                      class="button button--secondary js-open-document"
-                      type="button"
-                      data-document-id={document.id}
-                      disabled={!document.canOpen}
-                    >
-                      Öffnen
-                    </button>
-
-                    <a class="button button--ghost" href="#">
-                      Bearbeiten
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))
-          }
         </div>
-      )
-    }
+      </article>
 
-    <p id="document-open-status" class="form-status" aria-live="polite"></p>
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Verknüpfungen</h3>
+          <p>
+            Weise Dokumente Objekten, Einheiten, Mietern oder Vorgängen
+            nachvollziehbar zu.
+          </p>
+          <div class="row">
+            <a href="/app/objekte" class="button button--secondary">
+              Zu den Objekten
+            </a>
+          </div>
+        </div>
+      </article>
+    </section>
   </div>
 </AppLayout>
-
-<script>
-  const buttons = document.querySelectorAll(".js-open-document");
-  const statusEl = document.querySelector("#document-open-status");
-
-  buttons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      const documentId = button.dataset.documentId;
-      if (!documentId) return;
-
-      try {
-        const response = await fetch(`/api/documents/${documentId}/signed-url`);
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          if (statusEl) {
-            statusEl.textContent =
-              result?.errors?.form || "Dokument konnte nicht geöffnet werden.";
-          }
-          return;
-        }
-
-        window.open(result.data.signedUrl, "_blank", "noopener,noreferrer");
-      } catch {
-        if (statusEl) {
-          statusEl.textContent = "Beim Öffnen des Dokuments ist ein Fehler aufgetreten.";
-        }
-      }
-    });
-  });
-</script>
-
-<style>
-  .form-status {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--text-sm);
-  }
-</style>

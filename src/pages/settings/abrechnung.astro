@@ -1,57 +1,89 @@
 ---
 import SettingsLayout from "../../layouts/SettingsLayout.astro";
-import BillingSettingsCard from "../../components/settings/BillingSettingsCard.astro";
-import { MODULE_KEYS } from "../../lib/constants/module-keys";
 import { getAppSession } from "../../lib/auth/session";
 import { getAppContext } from "../../lib/utils/app-context";
-import { getMergedLimitsForModules } from "../../lib/billing/modules";
-import { getAllUsageStatuses } from "../../lib/access/usage-access";
-import { listObjectsByOrganization } from "../../lib/domain/objects/object-repository";
-import { listUnitsByOrganization } from "../../lib/domain/units/unit-repository";
-import { listTenantsByOrganization } from "../../lib/domain/tenants/tenant-repository";
-
-const activeModules = [
-  MODULE_KEYS.HAUSVERWALTUNG,
-  MODULE_KEYS.SONDEREIGENTUM,
-];
+import { listObjectsByOrganization } from "../../lib/domain/objects/object-list-service";
+import { listUnitsByOrganization } from "../../lib/domain/units/unit-list-service";
+import { listTenantsByOrganization } from "../../lib/domain/tenants/tenant-list-service";
 
 const session = await getAppSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
 const appContext = await getAppContext(session);
+
+if (!appContext.organizationId) {
+  throw new Error("Keine organizationId verfügbar.");
+}
 
 const [objects, units, tenants] = await Promise.all([
   listObjectsByOrganization(appContext.organizationId),
   listUnitsByOrganization(appContext.organizationId),
   listTenantsByOrganization(appContext.organizationId),
 ]);
-
-const mergedLimits = getMergedLimitsForModules(activeModules);
-
-const usageStatuses = getAllUsageStatuses(mergedLimits, {
-  maxObjects: objects.length,
-  maxUnits: units.length,
-  maxTenants: tenants.length,
-});
 ---
 
 <SettingsLayout
-  title="Abrechnung | ImmobilienPro"
+  title="Abrechnungseinstellungen | ImmobilienPro"
+  description="Grundlagen und Bezugsdaten für Abrechnungen."
+  userEmail={session.email}
   organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
 >
   <div class="stack">
-    <div class="section__header">
-      <span class="section__eyebrow">Abrechnung</span>
-      <h1>Abo, Module und Nutzung</h1>
+    <header class="section__header">
+      <p class="section__eyebrow">Abrechnung</p>
+      <h2>Abrechnungsrelevante Basisdaten</h2>
       <p>
-        Hier siehst du dein aktives Setup, kombinierte Limits und die Grundlage
-        für spätere Upgrades oder Add-ons.
+        Hier siehst du die aktuelle Datenbasis für Objekte, Einheiten und
+        Mieter, die für spätere Abrechnungen relevant ist.
       </p>
-    </div>
+    </header>
 
-    <BillingSettingsCard
-      activeModules={activeModules}
-      usageStatuses={usageStatuses}
-    />
+    <section class="grid-auto">
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Objekte</h3>
+          <p><strong>Anzahl:</strong> {objects.length}</p>
+          <p>
+            Diese Objekte stehen aktuell als Basis für abrechnungsbezogene
+            Prozesse zur Verfügung.
+          </p>
+        </div>
+      </article>
+
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Wohneinheiten</h3>
+          <p><strong>Anzahl:</strong> {units.length}</p>
+          <p>
+            Diese Einheiten können später in Auswertungen und Abrechnungen
+            einbezogen werden.
+          </p>
+        </div>
+      </article>
+
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Mieter</h3>
+          <p><strong>Anzahl:</strong> {tenants.length}</p>
+          <p>
+            Aktive Mieterdaten bilden die Grundlage für weitere finanzielle
+            Zuordnungen.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <h3>Nächste Schritte</h3>
+        <p>
+          Sobald die Basisdaten vollständig sind, kannst du weitere
+          Abrechnungslogik und Zuordnungen darauf aufbauen.
+        </p>
+      </div>
+    </section>
   </div>
 </SettingsLayout>

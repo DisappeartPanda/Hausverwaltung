@@ -2,24 +2,30 @@
   "name": "hausverwaltung",
   "type": "module",
   "version": "0.0.1",
+  "private": true,
   "scripts": {
     "dev": "astro dev",
+    "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "check": "astro check",
+    "typecheck": "astro check",
+    "seed:test-tenants": "tsx scripts/createTestTenants.ts"
   },
   "dependencies": {
-    "@astrojs/react": "^4.4.2",
-    "@astrojs/tailwind": "^6.0.2",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.98.0",
-    "astro": "^5.17.1",
-    "dotenv": "^17.3.1",
-    "jspdf": "^4.2.0",
-    "jspdf-autotable": "^5.0.7",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "tailwindcss": "^3.4.19",
-    "tslib": "^2.8.1"
+    "@astrojs/node": "^9.4.0",
+    "@astrojs/react": "^4.4.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.49.8",
+    "astro": "^5.13.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   }
 }

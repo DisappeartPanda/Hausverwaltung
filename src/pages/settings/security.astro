@@ -1,0 +1,57 @@
+---
+import SettingsLayout from "../../layouts/SettingsLayout.astro";
+import { ROUTES } from "../../lib/constants/routes";
+
+const user = Astro.locals.user;
+
+if (!user) {
+  return Astro.redirect(ROUTES.AUTH_LOGIN);
+}
+
+const userEmail = user.email ?? null;
+---
+
+<SettingsLayout
+  title="Sicherheit | ImmobilienPro"
+  description="Sicherheitseinstellungen und Kontoschutz."
+  userEmail={userEmail}
+>
+  <div class="stack">
+    <header class="section__header">
+      <p class="section__eyebrow">Sicherheit</p>
+      <h2>Kontoschutz und Zugriff</h2>
+      <p>
+        Verwalte zentrale Sicherheitsaspekte rund um dein Konto und behalte
+        wichtige Zugriffswege im Blick.
+      </p>
+    </header>
+
+    <section class="grid-auto">
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Passwort</h3>
+          <p>
+            Wenn du dein Passwort ändern oder zurücksetzen möchtest, nutze den
+            offiziellen Reset-Prozess.
+          </p>
+          <div class="row">
+            <a href={ROUTES.AUTH_FORGOT_PASSWORD} class="button button--primary">
+              Passwort zurücksetzen
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Aktuelles Konto</h3>
+          <p><strong>E-Mail:</strong> {userEmail || "—"}</p>
+          <p>
+            Stelle sicher, dass nur autorisierte Personen Zugriff auf dieses
+            Konto haben.
+          </p>
+        </div>
+      </article>
+    </section>
+  </div>
+</SettingsLayout>

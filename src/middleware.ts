@@ -1,6 +1,8 @@
 import { defineMiddleware } from "astro:middleware";
-import { createServerSupabaseClient } from "./lib/supabase/server";
 import { ROUTES } from "./lib/constants/routes";
+import { createServerSupabaseClient } from "./lib/supabase/server";
+import { getPostLoginRoute } from "./lib/auth/redirects";
+import { getUserRole } from "./lib/auth/user-role";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const supabase = createServerSupabaseClient(context.cookies);
@@ -31,7 +33,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   if (isAuthRoute && user) {
-    return context.redirect(ROUTES.APP_DASHBOARD);
+    const role = getUserRole(user);
+    return context.redirect(getPostLoginRoute(role));
   }
 
   return next();

@@ -2,10 +2,10 @@
 import AppLayout from "../../layouts/AppLayout.astro";
 import { MODULE_KEYS } from "../../lib/constants/module-keys";
 import { getVisibleDashboardWidgets } from "../../lib/dashboard/widget-resolver";
-import DashboardShell from "../../components/dashboard/DashboardShell.astro";
 import { getAppContext } from "../../lib/utils/app-context";
 import { getDashboardSummaryViewModel } from "../../lib/domain/dashboard/dashboard-service";
 import { requireLandlordSession } from "../../lib/auth/guards";
+import { requireOrganizationId } from "../../lib/utils/require-organization-id";
 
 const activeModules = [
   MODULE_KEYS.HAUSVERWALTUNG,
@@ -21,12 +21,16 @@ if (session instanceof Response) {
 const appContext = await getAppContext(session);
 const widgets = getVisibleDashboardWidgets(activeModules);
 
-let dashboardSummary = {
+type DashboardSummary = Awaited<ReturnType<typeof getDashboardSummaryViewModel>>;
+
+let dashboardSummary: DashboardSummary = {
   kpis: [],
 };
 
 try {
-  dashboardSummary = await getDashboardSummaryViewModel(appContext.organizationId);
+  dashboardSummary = await getDashboardSummaryViewModel(
+    requireOrganizationId(appContext.organizationId)
+  );
 } catch (error) {
   console.error("Fehler beim Laden des Dashboards:", error);
 }
@@ -34,14 +38,66 @@ try {
 
 <AppLayout
   title="Dashboard | ImmobilienPro"
-  organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
+  organizationName={appContext.organizationName ?? "ImmobilienPro"}
+  userEmail={Astro.locals.user?.email ?? null}
 >
-  <DashboardShell
-    organizationName={appContext.organizationName}
-    activeModules={activeModules}
-    widgets={widgets}
-    kpis={dashboardSummary.kpis}
-  />
+  <div class="stack">
+    <header class="section__header">
+      <p class="section__eyebrow">Dashboard</p>
+      <h2>Deine Verwaltungsübersicht</h2>
+      <p>
+        Hier siehst du die wichtigsten Kennzahlen, aktiven Module und sichtbaren
+        Bereiche deiner Organisation.
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="panel__body stack">
+        <div class="row row--between">
+          <h3>Kennzahlen</h3>
+          <span class="badge badge--accent">Live-Überblick</span>
+        </div>
+
+        <div class="kpi-grid">
+          {
+            dashboardSummary.kpis.length
+              ? dashboardSummary.kpis.map((kpi) => (
+                  <article class="kpi-card">
+                    <div class="kpi-card__label">{kpi.label}</div>
+                    <div class="kpi-card__value">{kpi.value}</div>
+                  </article>
+                ))
+              : (
+                <article class="kpi-card">
+                  <div class="kpi-card__label">Status</div>
+                  <div class="kpi-card__value">Keine KPIs</div>
+                </article>
+              )
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-auto">
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <p class="section__eyebrow">Module</p>
+          <h3>Aktive Module</h3>
+          <div class="row">
+            {activeModules.map((module) => <span class="badge">{module}</span>)}
+          </div>
+        </div>
+      </article>
+
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <p class="section__eyebrow">Widgets</p>
+          <h3>Sichtbare Bereiche</h3>
+          <ul>
+            {widgets.map((widget) => <li>{widget.title ?? widget.key}</li>)}
+          </ul>
+        </div>
+      </article>
+    </section>
+  </div>
 </AppLayout>

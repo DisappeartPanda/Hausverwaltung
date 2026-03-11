@@ -1,0 +1,50 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { ROUTES } from "../lib/constants/routes";
+---
+
+<MarketingLayout
+  title="Kontakt | ImmobilienPro"
+  description="Kontaktseite von ImmobilienPro für allgemeine Anfragen und Produktinteresse."
+>
+  <section class="section">
+    <div class="container--md">
+      <header class="section__header">
+        <p class="section__eyebrow">Kontakt</p>
+        <h1>Sprich mit uns über deine Hausverwaltung</h1>
+        <p>
+          Du hast Fragen zu ImmobilienPro, möchtest den Einsatz besprechen oder
+          brauchst Unterstützung beim Einstieg? Dann melde dich bei uns.
+        </p>
+      </header>
+
+      <div class="grid-auto">
+        <article class="card card--glass">
+          <div class="card__body stack">
+            <h2>Allgemeine Anfrage</h2>
+            <p>
+              Für Produktfragen, Rückmeldungen oder erste Gespräche rund um den
+              Einsatz von ImmobilienPro.
+            </p>
+            <p><strong>E-Mail:</strong> kontakt@immobilienpro.local</p>
+          </div>
+        </article>
+
+        <article class="card card--glass">
+          <div class="card__body stack">
+            <h2>Bereits registriert?</h2>
+            <p>
+              Wenn du schon ein Konto hast, kannst du dich direkt anmelden und
+              in deinen Bereich wechseln.
+            </p>
+            <div class="row">
+              <a href={ROUTES.AUTH_LOGIN} class="button button--primary">
+                Zum Login
+              </a>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</MarketingLayout>

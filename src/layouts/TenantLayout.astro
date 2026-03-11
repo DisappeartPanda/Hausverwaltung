@@ -1,69 +1,56 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
-import TenantSidebar from "../components/shared/TenantSidebar.astro";
+import { ROUTES } from "../lib/constants/routes";
 
 interface Props {
   title?: string;
   description?: string;
-  theme?: "dark-green" | "dark-blue" | "light";
+  userEmail?: string | null;
+
+  // Legacy-Kompatibilität
   tenantName?: string;
-  currentPath?: string;
+  activeModules?: string[];
+  theme?: string;
+  organizationName?: string;
 }
 
 const {
-  title = "Mieterportal | ImmobilienPro",
-  description = "Dokumente, Mängel und Nachrichten zentral im Mieterportal.",
-  theme = "dark-green",
-  tenantName = "Max Mustermann",
-  currentPath = Astro.url.pathname,
+  title = "Mieterbereich | ImmobilienPro",
+  description = "Mieterportal für Dokumente, Informationen und Meldungen.",
+  userEmail = null,
+  tenantName = "Mieterbereich",
 } = Astro.props;
 ---
 
-<BaseLayout title={title} description={description} theme={theme}>
-  <div class="tenant-shell">
-    <aside class="tenant-shell__sidebar">
-      <TenantSidebar tenantName={tenantName} currentPath={currentPath} />
-    </aside>
+<BaseLayout title={title} description={description}>
+  <main class="page-shell">
+    <section class="section">
+      <div class="container">
+        <div class="row row--between">
+          <div class="stack">
+            <p class="section__eyebrow">Tenant</p>
+            <h1>{tenantName}</h1>
+            {userEmail && <p>Angemeldet als {userEmail}</p>}
+          </div>
 
-    <main class="tenant-shell__content">
-      <slot />
-    </main>
-  </div>
+          <div class="row">
+            <a href={ROUTES.APP_TENANT_HOME} class="button button--secondary">
+              Start
+            </a>
+            <a href={ROUTES.APP_DOCUMENTS} class="button button--secondary">
+              Dokumente
+            </a>
+            <a href={ROUTES.APP_DEFECTS} class="button button--secondary">
+              Mängel
+            </a>
+            <a href={ROUTES.API_LOGOUT} class="button button--ghost">
+              Abmelden
+            </a>
+          </div>
+        </div>
+
+        <slot />
+      </div>
+    </section>
+  </main>
 </BaseLayout>
-
-<style>
-  .tenant-shell {
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns: 18rem 1fr;
-  }
-
-  .tenant-shell__sidebar {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    border-right: 1px solid var(--border);
-    background: var(--surface-glass);
-    backdrop-filter: blur(var(--blur-md));
-    -webkit-backdrop-filter: blur(var(--blur-md));
-  }
-
-  .tenant-shell__content {
-    padding: var(--space-8);
-  }
-
-  @media (max-width: 960px) {
-    .tenant-shell {
-      grid-template-columns: 1fr;
-    }
-
-    .tenant-shell__sidebar {
-      position: static;
-      height: auto;
-    }
-
-    .tenant-shell__content {
-      padding: var(--space-5);
-    }
-  }
-</style>

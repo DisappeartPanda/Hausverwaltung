@@ -1,16 +1,26 @@
 ---
 import AppLayout from "../../../layouts/AppLayout.astro";
-import { MODULE_KEYS } from "../../../lib/constants/module-keys";
 import { getAppSession } from "../../../lib/auth/session";
 import { getAppContext } from "../../../lib/utils/app-context";
-import { getObjectListViewModel } from "../../../lib/domain/objects/object-service";
-
-const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+import { getObjectListViewModel } from "../../../lib/domain/objects/object-list-service";
 
 const session = await getAppSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
 const appContext = await getAppContext(session);
 
-let objects = [];
+if (!appContext.organizationId) {
+  throw new Error("Keine organizationId verfügbar.");
+}
+
+type ObjectListItem = Awaited<
+  ReturnType<typeof getObjectListViewModel>
+>[number];
+
+let objects: ObjectListItem[] = [];
 
 try {
   objects = await getObjectListViewModel(appContext.organizationId);
@@ -22,106 +32,102 @@ try {
 <AppLayout
   title="Neue Wohneinheit | ImmobilienPro"
   organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
+  userEmail={session.email}
 >
   <div class="stack">
-    <div class="section__header">
-      <span class="section__eyebrow">Wohneinheiten</span>
-      <h1>Neue Wohneinheit anlegen</h1>
+    <header class="section__header">
+      <p class="section__eyebrow">Wohneinheiten</p>
+      <h2>Neue Wohneinheit anlegen</h2>
       <p>
-        Erfasse eine neue Einheit und ordne sie direkt einem Objekt zu.
+        Erfasse eine neue Wohneinheit und ordne sie einem bestehenden Objekt zu.
       </p>
-    </div>
+    </header>
 
     <section class="card card--glass">
       <div class="card__body stack">
-        <form class="stack" id="unit-create-form">
-          <div class="grid-auto">
-            <div class="input-group">
-              <label class="input-label" for="title">Bezeichnung</label>
-              <input id="title" name="title" placeholder="z. B. WE 3.2" />
-            </div>
-
-            <div class="input-group">
-              <label class="input-label" for="status">Status</label>
-              <select id="status" name="status">
-                <option value="frei">Frei</option>
-                <option value="vermietet">Vermietet</option>
-                <option value="reserviert">Reserviert</option>
-              </select>
-            </div>
-          </div>
-
+        <form id="unit-form" class="stack">
           <div class="input-group">
-            <label class="input-label" for="objectId">Objekt</label>
-            <select id="objectId" name="objectId">
-              <option value="">Bitte Objekt wählen</option>
+            <label for="objectId" class="input-label">Objekt</label>
+            <select id="objectId" name="objectId" required>
+              <option value="">Bitte auswählen</option>
               {
                 objects.map((object) => (
-                  <option value={object.id}>{object.name}</option>
+                  <option value={object.id}>{object.title}</option>
                 ))
               }
             </select>
           </div>
 
+          <div class="input-group">
+            <label for="title" class="input-label">Bezeichnung</label>
+            <input id="title" name="title" type="text" required />
+          </div>
+
+          <div class="input-group">
+            <label for="status" class="input-label">Status</label>
+            <select id="status" name="status">
+              <option value="vacant">Leerstand</option>
+              <option value="occupied">Vermietet</option>
+              <option value="reserved">Reserviert</option>
+            </select>
+          </div>
+
           <div class="row">
-            <button class="button button--primary" type="submit">
+            <button type="submit" class="button button--primary">
               Wohneinheit speichern
             </button>
-            <a class="button button--secondary" href="/app/wohneinheiten">
+            <a href="/app/wohneinheiten" class="button button--secondary">
               Abbrechen
             </a>
           </div>
-
-          <p class="form-status" id="unit-form-status" aria-live="polite"></p>
         </form>
+
+        <div id="unit-form-status" class="panel" hidden>
+          <div class="panel__body">
+            <p id="unit-form-status-text"></p>
+          </div>
+        </div>
       </div>
     </section>
   </div>
 </AppLayout>
 
 <script>
-  const form = document.querySelector("#unit-create-form");
-  const statusEl = document.querySelector("#unit-form-status");
+  const form = document.getElementById("unit-form") as HTMLFormElement | null;
+  const statusWrap = document.getElementById("unit-form-status") as HTMLElement | null;
+  const statusEl = document.getElementById("unit-form-status-text") as HTMLElement | null;
 
-  form?.addEventListener("submit", async (event) => {
+  if (!form || !statusWrap || !statusEl) {
+    throw new Error("Formular oder Status-Elemente nicht gefunden.");
+  }
+
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const formData = new FormData(form);
-    const payload = Object.fromEntries(formData.entries());
 
     try {
       const response = await fetch("/api/units/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
+        body: formData,
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
 
-      if (!response.ok || !result.success) {
+      statusWrap.hidden = false;
+
+      if (!response.ok) {
         statusEl.textContent =
-          result?.errors?.form ||
-          Object.values(result?.errors || {})[0] ||
-          "Wohneinheit konnte nicht gespeichert werden.";
+          result?.message ?? "Beim Speichern ist ein Fehler aufgetreten.";
         return;
       }
 
       statusEl.textContent = "Wohneinheit erfolgreich angelegt.";
       form.reset();
-    } catch {
+    } catch (error) {
+      console.error(error);
+      statusWrap.hidden = false;
       statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
     }
   });
 </script>
-
-<style>
-  .form-status {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--text-sm);
-  }
-</style>

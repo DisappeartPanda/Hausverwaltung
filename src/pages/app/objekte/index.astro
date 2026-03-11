@@ -1,14 +1,6 @@
 ---
 import AppLayout from "../../../layouts/AppLayout.astro";
-import { MODULE_KEYS } from "../../../lib/constants/module-keys";
-import { getAppContext } from "../../../lib/utils/app-context";
-import { getObjectListViewModel } from "../../../lib/domain/objects/object-service";
 import { requireLandlordSession } from "../../../lib/auth/guards";
-
-const activeModules = [
-  MODULE_KEYS.HAUSVERWALTUNG,
-  MODULE_KEYS.SONDEREIGENTUM,
-];
 
 const session = await requireLandlordSession(Astro);
 
@@ -16,85 +8,80 @@ if (session instanceof Response) {
   return session;
 }
 
-const appContext = await getAppContext(session);
-
-let objects = [];
-
-try {
-  objects = await getObjectListViewModel(appContext.organizationId);
-} catch (error) {
-  console.error("Fehler beim Laden der Objekte:", error);
-}
+const userEmail = Astro.locals.user?.email ?? null;
 ---
 
 <AppLayout
   title="Objekte | ImmobilienPro"
-  organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
-  userEmail={session.email}
+  organizationName="Objektverwaltung"
+  userEmail={userEmail}
 >
   <div class="stack">
-    <div class="row row--between">
-      <div class="section__header">
-        <span class="section__eyebrow">Objekte</span>
-        <h1>Deine verwalteten Objekte</h1>
-        <p>
-          Behalte Gebäude, Eigentümerstruktur und Rücklagen in einer Übersicht.
-        </p>
+    <header class="section__header">
+      <p class="section__eyebrow">Objekte</p>
+      <h2>Objektbestand im Überblick</h2>
+      <p>
+        Verwalte Gebäude, Einheiten und zugehörige Stammdaten in einer
+        strukturierten Oberfläche.
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="panel__body stack">
+        <div class="row row--between">
+          <h3>Bestandsübersicht</h3>
+          <span class="badge badge--accent">Verwaltung</span>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Objekte</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Wohneinheiten</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Aktive Vorgänge</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+        </div>
       </div>
+    </section>
 
-      <a class="button button--primary" href="/app/objekte/neu">
-        Objekt anlegen
-      </a>
-    </div>
-
-    {
-      objects.length === 0 ? (
-        <section class="card card--glass">
-          <div class="card__body stack">
-            <span class="badge">Noch keine Objekte</span>
-            <h3>Lege dein erstes Objekt an</h3>
-            <p>
-              Sobald ein Objekt angelegt wurde, erscheint es hier in deiner Übersicht.
-            </p>
-            <a class="button button--primary" href="/app/objekte/neu">
-              Erstes Objekt anlegen
+    <section class="grid-auto">
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Neues Objekt anlegen</h3>
+          <p>
+            Lege neue Gebäude oder Liegenschaften an und erweitere deinen
+            Bestand sauber strukturiert.
+          </p>
+          <div class="row">
+            <a href="/app/wohneinheiten" class="button button--primary">
+              Weiter zu Einheiten
             </a>
           </div>
-        </section>
-      ) : (
-        <div class="grid-auto">
-          {
-            objects.map((object) => (
-              <article class="card card--glass card--glow">
-                <div class="card__body stack">
-                  <div class="row row--between">
-                    <span class="badge badge--accent">{object.city}</span>
-                    <span class="badge">{object.unitCountLabel}</span>
-                  </div>
-
-                  <h3>{object.name}</h3>
-
-                  <div class="stack" style="gap: 0.5rem;">
-                    <p>{object.streetLabel}</p>
-                    <p>{object.postalCodeLabel}</p>
-                  </div>
-
-                  <div class="row">
-                    <a class="button button--secondary" href={`/app/objekte/${object.id}`}>
-                      Details
-                    </a>
-                    <a class="button button--ghost" href={`/app/objekte/${object.id}/bearbeiten`}>
-                      Bearbeiten
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))
-          }
         </div>
-      )
-    }
+      </article>
+
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Einheiten verwalten</h3>
+          <p>
+            Pflege Einheiten, Zuordnungen und Detailinformationen zentral an
+            einem Ort.
+          </p>
+          <div class="row">
+            <a href="/app/wohneinheiten" class="button button--secondary">
+              Wohneinheiten öffnen
+            </a>
+          </div>
+        </div>
+      </article>
+    </section>
   </div>
 </AppLayout>

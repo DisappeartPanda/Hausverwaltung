@@ -1,74 +1,46 @@
 ---
-import AppLayout from "./AppLayout.astro";
-import SettingsNav from "../components/shared/SettingsNav.astro";
-import type { ModuleKey } from "../lib/constants/module-keys";
+import BaseLayout from "./BaseLayout.astro";
+import { ROUTES } from "../lib/constants/routes";
 
 interface Props {
   title?: string;
   description?: string;
-  theme?: "dark-green" | "dark-blue" | "light";
-  organizationName?: string;
-  activeModules?: ModuleKey[];
-  currentPath?: string;
+  userEmail?: string | null;
+  organizationName?: string | null;
+  activeModules?: string[];
+  theme?: string;
 }
 
 const {
   title = "Einstellungen | ImmobilienPro",
-  description = "Verwalte Konto, Organisation, Design und Abrechnung.",
-  theme = "dark-green",
-  organizationName = "Musterverwaltung GmbH",
-  activeModules = [],
-  currentPath = Astro.url.pathname,
+  description = "Verwalte deine Einstellungen und Kontodaten.",
+  userEmail = null,
 } = Astro.props;
 ---
 
-<AppLayout
-  title={title}
-  description={description}
-  theme={theme}
-  organizationName={organizationName}
-  activeModules={activeModules}
-  currentPath={currentPath}
->
-  <div class="settings-layout">
-    <aside class="settings-layout__sidebar">
-      <div class="panel">
-        <div class="panel__body">
-          <SettingsNav currentPath={currentPath} />
+<BaseLayout title={title} description={description}>
+  <main class="page-shell">
+    <section class="section">
+      <div class="container">
+        <div class="row row--between">
+          <div class="stack">
+            <p class="section__eyebrow">Einstellungen</p>
+            <h1>Kontoeinstellungen</h1>
+            {userEmail && <p>Angemeldet als {userEmail}</p>}
+          </div>
+
+          <div class="row">
+            <a href={ROUTES.APP_DASHBOARD} class="button button--secondary">
+              Zurück zum Dashboard
+            </a>
+            <a href={ROUTES.API_LOGOUT} class="button button--ghost">
+              Abmelden
+            </a>
+          </div>
         </div>
+
+        <slot />
       </div>
-    </aside>
-
-    <div class="settings-layout__content">
-      <slot />
-    </div>
-  </div>
-</AppLayout>
-
-<style>
-  .settings-layout {
-    display: grid;
-    grid-template-columns: 18rem 1fr;
-    gap: var(--space-8);
-    align-items: start;
-  }
-
-  .settings-layout__sidebar {
-    position: sticky;
-    top: calc(var(--topbar-height) + var(--space-4));
-  }
-
-  .settings-layout__content {
-    min-width: 0;
-  }
-
-  @media (max-width: 1080px) {
-    .settings-layout {
-      grid-template-columns: 1fr;
-    }
-
-    .settings-layout__sidebar {
-      position: static;
-    }
-  }
-</style>
+    </section>
+  </main>
+</BaseLayout>

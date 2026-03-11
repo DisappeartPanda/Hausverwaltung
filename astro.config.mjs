@@ -1,16 +1,11 @@
-import { defineConfig } from 'astro/config';
-import tailwind from '@astrojs/tailwind';
+import { defineConfig } from "astro/config";
+import node from "@astrojs/node";
+import react from "@astrojs/react";
 
 export default defineConfig({
-  output: 'server',  // ← HIER ÄNDERN!
-  integrations: [tailwind()],
-
-  
-  vite: {
-    define: {
-      'import.meta.env.PUBLIC_SUPABASE_URL': JSON.stringify(process.env.PUBLIC_SUPABASE_URL),
-      'import.meta.env.PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(process.env.PUBLIC_SUPABASE_ANON_KEY),
-    }
-  }
+  output: "server",
+  adapter: node({
+    mode: "standalone",
+  }),
+  integrations: [react()],
 });
-

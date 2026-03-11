@@ -1,0 +1,75 @@
+---
+import AppLayout from "../../../layouts/AppLayout.astro";
+import { requireTenantSession } from "../../../lib/auth/guards";
+
+const session = await requireTenantSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const userEmail = Astro.locals.user?.email ?? null;
+---
+
+<AppLayout
+  title="Mieterbereich | ImmobilienPro"
+  organizationName="Mieterbereich"
+  userEmail={userEmail}
+>
+  <div class="stack">
+    <header class="section__header">
+      <p class="section__eyebrow">Mieterbereich</p>
+      <h2>Willkommen im Mieterportal</h2>
+      <p>
+        Hier findest du alle für dich relevanten Informationen, Dokumente und
+        Meldestrecken an einem Ort.
+      </p>
+    </header>
+
+    <section class="grid-auto">
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Meine Dokumente</h3>
+          <p>
+            Greife auf Verträge, Abrechnungen und freigegebene Unterlagen zu.
+          </p>
+          <div class="row">
+            <a href="/app/dokumente" class="button button--primary">
+              Dokumente ansehen
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Schaden melden</h3>
+          <p>
+            Reiche neue Mängel oder Probleme schnell digital ein und behalte den
+            Status im Blick.
+          </p>
+          <div class="row">
+            <a href="/app/maengel" class="button button--secondary">
+              Mängel öffnen
+            </a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <h3>Kontakt & Kommunikation</h3>
+          <p>
+            Bleibe mit deiner Verwaltung in Kontakt und behalte relevante
+            Informationen im Blick.
+          </p>
+          <div class="row">
+            <a href="/app/mieter" class="button button--secondary">
+              Informationen öffnen
+            </a>
+          </div>
+        </div>
+      </article>
+    </section>
+  </div>
+</AppLayout>

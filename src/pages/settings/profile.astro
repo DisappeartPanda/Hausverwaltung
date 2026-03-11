@@ -1,0 +1,57 @@
+---
+import SettingsLayout from "../../layouts/SettingsLayout.astro";
+import { ROUTES } from "../../lib/constants/routes";
+
+const user = Astro.locals.user;
+
+if (!user) {
+  return Astro.redirect(ROUTES.AUTH_LOGIN);
+}
+
+const userEmail = user.email ?? null;
+const firstName = String(user.user_metadata?.first_name ?? "");
+const lastName = String(user.user_metadata?.last_name ?? "");
+const role = String(user.user_metadata?.role ?? "guest");
+const organizationName = String(user.user_metadata?.organization_name ?? "");
+const organizationId = String(user.user_metadata?.organization_id ?? "");
+---
+
+<SettingsLayout
+  title="Profil | ImmobilienPro"
+  description="Profil- und Kontoinformationen verwalten."
+  userEmail={userEmail}
+>
+  <div class="stack">
+    <header class="section__header">
+      <p class="section__eyebrow">Profil</p>
+      <h2>Deine Profildaten</h2>
+      <p>
+        Hier siehst du die aktuell im Konto hinterlegten Basisinformationen.
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="panel__body stack">
+        <div class="grid-auto">
+          <article class="card card--glass">
+            <div class="card__body stack">
+              <h3>Persönliche Angaben</h3>
+              <p><strong>Vorname:</strong> {firstName || "—"}</p>
+              <p><strong>Nachname:</strong> {lastName || "—"}</p>
+              <p><strong>E-Mail:</strong> {userEmail || "—"}</p>
+              <p><strong>Rolle:</strong> {role || "—"}</p>
+            </div>
+          </article>
+
+          <article class="card card--glass">
+            <div class="card__body stack">
+              <h3>Organisation</h3>
+              <p><strong>Name:</strong> {organizationName || "—"}</p>
+              <p><strong>ID:</strong> {organizationId || "—"}</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </div>
+</SettingsLayout>

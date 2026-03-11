@@ -1,11 +1,6 @@
 ---
 import AppLayout from "../../../layouts/AppLayout.astro";
-import { MODULE_KEYS } from "../../../lib/constants/module-keys";
-import { getAppContext } from "../../../lib/utils/app-context";
-import { getMaintenanceListViewModel } from "../../../lib/domain/maintenance/maintenance-service";
 import { requireLandlordSession } from "../../../lib/auth/guards";
-
-const activeModules = [MODULE_KEYS.HAUSVERWALTUNG];
 
 const session = await requireLandlordSession(Astro);
 
@@ -13,85 +8,75 @@ if (session instanceof Response) {
   return session;
 }
 
-const appContext = await getAppContext(session);
-
-let maintenanceItems = [];
-
-try {
-  maintenanceItems = await getMaintenanceListViewModel(appContext.organizationId);
-} catch (error) {
-  console.error("Fehler beim Laden der Wartungen:", error);
-}
+const userEmail = Astro.locals.user?.email ?? null;
 ---
 
 <AppLayout
   title="Wartungen | ImmobilienPro"
-  organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
-  userEmail={session.email}
+  organizationName="Wartungsmanagement"
+  userEmail={userEmail}
 >
   <div class="stack">
-    <div class="row row--between">
-      <div class="section__header">
-        <span class="section__eyebrow">Wartungen</span>
-        <h1>Wartungen und Termine im Blick</h1>
-        <p>
-          Plane, dokumentiere und verfolge alle wiederkehrenden Maßnahmen für
-          deine Objekte.
-        </p>
+    <header class="section__header">
+      <p class="section__eyebrow">Wartungen</p>
+      <h2>Technische Vorgänge und Wartungen im Blick</h2>
+      <p>
+        Organisiere wiederkehrende Aufgaben, offene technische Themen und
+        wichtige Prüfprozesse strukturiert.
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="panel__body stack">
+        <div class="row row--between">
+          <h3>Statusübersicht</h3>
+          <span class="badge badge--accent">Technik</span>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Geplante Wartungen</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Offene Aufgaben</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Dringende Themen</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+        </div>
       </div>
+    </section>
 
-      <a class="button button--primary" href="/app/wartungen/neu">
-        Wartung anlegen
-      </a>
-    </div>
+    <section class="grid-auto">
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Wartungspläne</h3>
+          <p>
+            Behalte wiederkehrende Wartungen und Fristen für deine Objekte im
+            Blick.
+          </p>
+        </div>
+      </article>
 
-    {
-      maintenanceItems.length === 0 ? (
-        <section class="card card--glass">
-          <div class="card__body stack">
-            <span class="badge">Noch keine Wartungen</span>
-            <h3>Plane deine erste Wartung</h3>
-            <p>
-              Neue Wartungen werden hier nach dem Speichern automatisch angezeigt.
-            </p>
-            <a class="button button--primary" href="/app/wartungen/neu">
-              Erste Wartung anlegen
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Mängel & Folgevorgänge</h3>
+          <p>
+            Verknüpfe technische Probleme mit Wartungen und priorisiere offene
+            Aufgaben.
+          </p>
+          <div class="row">
+            <a href="/app/maengel" class="button button--secondary">
+              Zu den Mängeln
             </a>
           </div>
-        </section>
-      ) : (
-        <div class="stack">
-          {
-            maintenanceItems.map((item) => (
-              <article class="card card--glass card--glow">
-                <div class="card__body row row--between">
-                  <div class="stack" style="gap: 0.4rem;">
-                    <div class="row">
-                      <span class="badge badge--accent">{item.statusLabel}</span>
-                      <span class="badge">{item.scheduledDateLabel}</span>
-                    </div>
-
-                    <h3>{item.title}</h3>
-                    <p>{item.objectLabel}</p>
-                    <p>{item.noteLabel}</p>
-                  </div>
-
-                  <div class="row">
-                    <a class="button button--secondary" href={`/app/wartungen/${item.id}`}>
-                      Details
-                    </a>
-                    <a class="button button--ghost" href={`/app/wartungen/${item.id}/bearbeiten`}>
-                      Bearbeiten
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))
-          }
         </div>
-      )
-    }
+      </article>
+    </section>
   </div>
 </AppLayout>

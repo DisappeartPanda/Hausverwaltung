@@ -1,173 +1,158 @@
 ---
 import AppLayout from "../../../../layouts/AppLayout.astro";
-import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppSession } from "../../../../lib/auth/session";
 import { getAppContext } from "../../../../lib/utils/app-context";
-import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getObjectListViewModel } from "../../../../lib/domain/objects/object-list-service";
 import { getUnitDetailViewModel } from "../../../../lib/domain/units/unit-detail-service";
-import { getObjectListViewModel } from "../../../../lib/domain/objects/object-service";
 
-const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
-
-const session = await requireLandlordSession(Astro);
+const session = await getAppSession(Astro);
 
 if (session instanceof Response) {
   return session;
 }
 
 const appContext = await getAppContext(session);
-const { unitId } = Astro.params;
 
-let unitDetail = null;
-let objects = [];
+if (!appContext.organizationId) {
+  throw new Error("Keine organizationId verfügbar.");
+}
+
+const unitId = Astro.params.unitId;
+
+if (!unitId) {
+  throw new Error("Keine unitId in der Route gefunden.");
+}
+
+type ObjectListItem = Awaited<
+  ReturnType<typeof getObjectListViewModel>
+>[number];
+
+let objects: ObjectListItem[] = [];
 
 try {
-  objects = await getObjectListViewModel(appContext.organizationId ?? "");
+  objects = await getObjectListViewModel(appContext.organizationId);
 } catch (error) {
   console.error("Fehler beim Laden der Objekte:", error);
 }
 
-if (unitId) {
-  try {
-    unitDetail = await getUnitDetailViewModel(
-      appContext.organizationId ?? "",
-      unitId,
-    );
-  } catch (error) {
-    console.error("Fehler beim Laden der Wohneinheit:", error);
-  }
-}
+const unit = await getUnitDetailViewModel(unitId, appContext.organizationId);
 ---
 
 <AppLayout
   title="Wohneinheit bearbeiten | ImmobilienPro"
   organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
   userEmail={session.email}
 >
-  {
-    !unitDetail ? (
-      <section class="card card--glass">
-        <div class="card__body stack">
-          <span class="badge">Nicht gefunden</span>
-          <h1>Wohneinheit nicht gefunden</h1>
-          <p>Die angeforderte Wohneinheit konnte nicht geladen werden.</p>
-          <a class="button button--primary" href="/app/wohneinheiten">
-            Zurück zur Einheitenübersicht
-          </a>
-        </div>
-      </section>
-    ) : (
-      <div class="stack">
-        <div class="section__header">
-          <span class="section__eyebrow">Wohneinheit bearbeiten</span>
-          <h1>{unitDetail.title}</h1>
-          <p>Bearbeite Zuordnung und Status dieser Einheit.</p>
-        </div>
+  <div class="stack">
+    <header class="section__header">
+      <p class="section__eyebrow">Wohneinheiten</p>
+      <h2>Wohneinheit bearbeiten</h2>
+      <p>Bearbeite Stammdaten, Status und Objektzuordnung dieser Einheit.</p>
+    </header>
 
-        <section class="card card--glass">
-          <div class="card__body stack">
-            <form class="stack" id="unit-update-form">
-              <input type="hidden" name="unitId" value={unitDetail.id} />
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <form id="unit-edit-form" class="stack">
+          <input type="hidden" name="unitId" value={unit.id} />
 
-              <div class="grid-auto">
-                <div class="input-group">
-                  <label class="input-label" for="title">Bezeichnung</label>
-                  <input id="title" name="title" value={unitDetail.title} />
-                </div>
-
-                <div class="input-group">
-                  <label class="input-label" for="status">Status</label>
-                  <select id="status" name="status">
-                    <option value="frei" selected={unitDetail.status === "frei"}>
-                      Frei
-                    </option>
-                    <option value="vermietet" selected={unitDetail.status === "vermietet"}>
-                      Vermietet
-                    </option>
-                    <option value="reserviert" selected={unitDetail.status === "reserviert"}>
-                      Reserviert
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="input-group">
-                <label class="input-label" for="objectId">Objekt</label>
-                <select id="objectId" name="objectId">
-                  <option value="">Bitte Objekt wählen</option>
-                  {
-                    objects.map((object) => (
-                      <option
-                        value={object.id}
-                        selected={object.id === unitDetail.objectId}
-                      >
-                        {object.name}
-                      </option>
-                    ))
-                  }
-                </select>
-              </div>
-
-              <div class="row">
-                <button class="button button--primary" type="submit">
-                  Änderungen speichern
-                </button>
-                <a class="button button--secondary" href={`/app/wohneinheiten/${unitDetail.id}`}>
-                  Abbrechen
-                </a>
-              </div>
-
-              <p id="unit-update-status" class="form-status" aria-live="polite"></p>
-            </form>
+          <div class="input-group">
+            <label for="objectId" class="input-label">Objekt</label>
+            <select id="objectId" name="objectId" required>
+              <option value="">Bitte auswählen</option>
+              {
+                objects.map((object) => (
+                  <option
+                    value={object.id}
+                    selected={object.id === unit.objectId}
+                  >
+                    {object.title}
+                  </option>
+                ))
+              }
+            </select>
           </div>
-        </section>
+
+          <div class="input-group">
+            <label for="title" class="input-label">Bezeichnung</label>
+            <input
+              id="title"
+              name="title"
+              type="text"
+              value={unit.title ?? ""}
+              required
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="status" class="input-label">Status</label>
+            <select id="status" name="status">
+              <option value="vacant" selected={unit.status === "vacant"}>
+                Leerstand
+              </option>
+              <option value="occupied" selected={unit.status === "occupied"}>
+                Vermietet
+              </option>
+              <option value="reserved" selected={unit.status === "reserved"}>
+                Reserviert
+              </option>
+            </select>
+          </div>
+
+          <div class="row">
+            <button type="submit" class="button button--primary">
+              Änderungen speichern
+            </button>
+            <a href={`/app/wohneinheiten/${unit.id}`} class="button button--secondary">
+              Zurück
+            </a>
+          </div>
+        </form>
+
+        <div id="unit-edit-status" class="panel" hidden>
+          <div class="panel__body">
+            <p id="unit-edit-status-text"></p>
+          </div>
+        </div>
       </div>
-    )
-  }
+    </section>
+  </div>
 </AppLayout>
 
 <script>
-  const form = document.querySelector("#unit-update-form");
-  const statusEl = document.querySelector("#unit-update-status");
+  const form = document.getElementById("unit-edit-form") as HTMLFormElement | null;
+  const statusWrap = document.getElementById("unit-edit-status") as HTMLElement | null;
+  const statusEl = document.getElementById("unit-edit-status-text") as HTMLElement | null;
 
-  form?.addEventListener("submit", async (event) => {
+  if (!form || !statusWrap || !statusEl) {
+    throw new Error("Formular oder Status-Elemente nicht gefunden.");
+  }
+
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const formData = new FormData(form);
-    const payload = Object.fromEntries(formData.entries());
 
     try {
       const response = await fetch("/api/units/update", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
+        body: formData,
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
 
-      if (!response.ok || !result.success) {
+      statusWrap.hidden = false;
+
+      if (!response.ok) {
         statusEl.textContent =
-          result?.errors?.form ||
-          Object.values(result?.errors || {})[0] ||
-          "Wohneinheit konnte nicht gespeichert werden.";
+          result?.message ?? "Beim Speichern ist ein Fehler aufgetreten.";
         return;
       }
 
       statusEl.textContent = "Wohneinheit erfolgreich aktualisiert.";
-      window.location.href = `/app/wohneinheiten/${payload.unitId}`;
-    } catch {
+    } catch (error) {
+      console.error(error);
+      statusWrap.hidden = false;
       statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
     }
   });
 </script>
-
-<style>
-  .form-status {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--text-sm);
-  }
-</style>

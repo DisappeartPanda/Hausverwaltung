@@ -1,32 +1,28 @@
 ---
 import "../styles/tokens.css";
-import "../styles/themes.css";
 import "../styles/base.css";
 import "../styles/components.css";
+import "../styles/themes.css";
+import "../styles/typography.css";
 
 interface Props {
   title?: string;
   description?: string;
-  theme?: "dark-green" | "dark-blue" | "light";
 }
 
 const {
   title = "ImmobilienPro",
-  description = "Modulare Plattform für Hausverwaltung, Sondereigentum und Mietpool.",
-  theme = "dark-green",
+  description = "Moderne Hausverwaltung für Vermieter, Verwalter und Mieter.",
 } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="de" data-theme={theme}>
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#0b1220" />
-    <meta name="color-scheme" content="dark light" />
-    <slot name="head" />
   </head>
   <body>
     <slot />

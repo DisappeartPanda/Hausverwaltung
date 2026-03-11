@@ -1,6 +1,6 @@
 ---
-import TenantLayout from "../../layouts/TenantLayout.astro";
-import { requireTenantSession } from "../../lib/auth/guards";
+import TenantLayout from "../../../layouts/TenantLayout.astro";
+import { requireTenantSession } from "../../../lib/auth/guards";
 
 const session = await requireTenantSession(Astro);
 

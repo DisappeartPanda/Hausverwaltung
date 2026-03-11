@@ -1,97 +1,102 @@
 ---
 import AppLayout from "../../../layouts/AppLayout.astro";
-import { MODULE_KEYS } from "../../../lib/constants/module-keys";
-import { getAppContext } from "../../../lib/utils/app-context";
-import { getDefectListViewModel } from "../../../lib/domain/defects/defect-service";
-import { requireLandlordSession } from "../../../lib/auth/guards";
+import { getUserRole } from "../../../lib/auth/user-role";
+import { ROLES } from "../../../lib/constants/roles";
+import { ROUTES } from "../../../lib/constants/routes";
 
-const activeModules = [
-  MODULE_KEYS.HAUSVERWALTUNG,
-  MODULE_KEYS.SONDEREIGENTUM,
-];
+const user = Astro.locals.user;
+const role = getUserRole(user);
 
-const session = await requireLandlordSession(Astro);
-
-if (session instanceof Response) {
-  return session;
+if (!user) {
+  return Astro.redirect(ROUTES.AUTH_LOGIN);
 }
 
-const appContext = await getAppContext(session);
-
-let defects = [];
-
-try {
-  defects = await getDefectListViewModel(appContext.organizationId);
-} catch (error) {
-  console.error("Fehler beim Laden der Mängel:", error);
-}
+const userEmail = user.email ?? null;
+const organizationName =
+  role === ROLES.TENANT ? "Mieterportal" : "Mängelmanagement";
 ---
 
 <AppLayout
   title="Mängel | ImmobilienPro"
-  organizationName={appContext.organizationName}
-  activeModules={activeModules}
-  theme={appContext.theme}
-  userEmail={session.email}
+  organizationName={organizationName}
+  userEmail={userEmail}
 >
   <div class="stack">
-    <div class="row row--between">
-      <div class="section__header">
-        <span class="section__eyebrow">Mängel</span>
-        <h1>Mängel zentral erfassen und verfolgen</h1>
-        <p>
-          Gebäude- und wohnungsbezogene Mängel in einer gemeinsamen Übersicht.
-        </p>
+    <header class="section__header">
+      <p class="section__eyebrow">Mängel</p>
+      <h2>Mängel und Schäden zentral erfassen</h2>
+      <p>
+        Behalte offene Schäden, Rückmeldungen und Folgevorgänge in einer
+        strukturierten Übersicht.
+      </p>
+    </header>
+
+    <section class="panel">
+      <div class="panel__body stack">
+        <div class="row row--between">
+          <h3>Statusübersicht</h3>
+          <span class="badge badge--accent">Vorgänge</span>
+        </div>
+
+        <div class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Offen</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">In Bearbeitung</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Abgeschlossen</div>
+            <div class="kpi-card__value">0</div>
+          </article>
+        </div>
       </div>
+    </section>
 
-      <a class="button button--primary" href="/app/maengel/neu">
-        Mangel anlegen
-      </a>
-    </div>
-
-    {
-      defects.length === 0 ? (
-        <section class="card card--glass">
-          <div class="card__body stack">
-            <span class="badge">Noch keine Mängel</span>
-            <h3>Erfasse den ersten Mangel</h3>
-            <p>
-              Neue Schäden oder Störungen erscheinen hier direkt nach dem Speichern.
-            </p>
-            <a class="button button--primary" href="/app/maengel/neu">
-              Ersten Mangel anlegen
+    <section class="grid-auto">
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Neuen Mangel erfassen</h3>
+          <p>
+            Dokumentiere neue Schäden, Auffälligkeiten oder technische Probleme
+            direkt digital.
+          </p>
+          <div class="row">
+            <a href="/app/wartungen" class="button button--primary">
+              Folgeprozesse ansehen
             </a>
           </div>
-        </section>
-      ) : (
-        <div class="grid-auto">
-          {
-            defects.map((defect) => (
-              <article class="card card--glass card--glow">
-                <div class="card__body stack">
-                  <div class="row row--between">
-                    <span class="badge badge--accent">{defect.statusLabel}</span>
-                    <span class="badge">{defect.levelLabel}</span>
-                  </div>
-
-                  <h3>{defect.title}</h3>
-                  <p>{defect.locationLabel}</p>
-                  <p>{defect.descriptionLabel}</p>
-
-                  <div class="row">
-                    <a class="button button--secondary" href={`/app/maengel/${defect.id}`}>
-                      Details
-                    </a>
-                    <a class="button button--ghost" href={`/app/maengel/${defect.id}/bearbeiten`}>
-                      Bearbeiten
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))
-          }
         </div>
-      )
-    }
+      </article>
+
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Bearbeitungsstatus</h3>
+          <p>
+            Behalte im Blick, welche Themen offen sind und welche bereits
+            weitergeleitet wurden.
+          </p>
+        </div>
+      </article>
+
+      <article class="card card--glass">
+        <div class="card__body stack">
+          <h3>Verknüpfte Bereiche</h3>
+          <p>
+            Verbinde Mängel mit Einheiten, Dokumenten und technischen
+            Folgevorgängen.
+          </p>
+          <div class="row">
+            <a href="/app/dokumente" class="button button--secondary">
+              Dokumente öffnen
+            </a>
+          </div>
+        </div>
+      </article>
+    </section>
   </div>
 </AppLayout>
