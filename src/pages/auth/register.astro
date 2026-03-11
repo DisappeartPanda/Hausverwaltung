@@ -2,23 +2,40 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { createServerSupabaseClient } from "../../lib/supabase/server";
 import { ROUTES } from "../../lib/constants/routes";
+import { ROLES } from "../../lib/constants/roles";
 
 let error = "";
 let success = "";
+
+let firstName = "";
+let lastName = "";
 let email = "";
+let role = ROLES.LANDLORD;
+let organizationName = "";
+let organizationId = "";
 
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
+
+  firstName = String(formData.get("firstName") ?? "").trim();
+  lastName = String(formData.get("lastName") ?? "").trim();
   email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  role = String(formData.get("role") ?? ROLES.LANDLORD) as
+    | typeof ROLES.LANDLORD
+    | typeof ROLES.TENANT;
+  organizationName = String(formData.get("organizationName") ?? "").trim();
+  organizationId = String(formData.get("organizationId") ?? "").trim();
 
-  if (!email || !password || !confirmPassword) {
-    error = "Bitte fülle alle Felder aus.";
+  if (!firstName || !lastName || !email || !password || !confirmPassword) {
+    error = "Bitte fülle alle Pflichtfelder aus.";
   } else if (password !== confirmPassword) {
     error = "Die Passwörter stimmen nicht überein.";
   } else if (password.length < 8) {
     error = "Das Passwort muss mindestens 8 Zeichen lang sein.";
+  } else if (role === ROLES.LANDLORD && !organizationName) {
+    error = "Bitte gib einen Organisationsnamen an.";
   } else {
     const supabase = createServerSupabaseClient(Astro.cookies);
 
@@ -27,6 +44,13 @@ if (Astro.request.method === "POST") {
       password,
       options: {
         emailRedirectTo: new URL(ROUTES.AUTH_LOGIN, Astro.url).toString(),
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          role,
+          organization_name: organizationName || null,
+          organization_id: organizationId || null,
+        },
       },
     });
 
@@ -40,14 +64,15 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<BaseLayout title="Registrieren | ImmobilienPro">
+<BaseLayout title="Registrierung | ImmobilienPro">
   <section class="auth-shell">
     <div class="auth-card">
       <div class="auth-header">
         <p class="eyebrow">Registrierung</p>
-        <h1>Konto erstellen</h1>
+        <h1>Neues Konto erstellen</h1>
         <p class="auth-copy">
-          Erstelle dein ImmobilienPro-Konto und starte mit der Verwaltung.
+          Registriere dich als Verwalter oder Mieter und starte mit
+          ImmobilienPro.
         </p>
       </div>
 
@@ -68,6 +93,26 @@ if (Astro.request.method === "POST") {
       }
 
       <form method="POST" class="auth-form">
+        <label for="firstName">Vorname</label>
+        <input
+          id="firstName"
+          name="firstName"
+          type="text"
+          autocomplete="given-name"
+          required
+          value={firstName}
+        />
+
+        <label for="lastName">Nachname</label>
+        <input
+          id="lastName"
+          name="lastName"
+          type="text"
+          autocomplete="family-name"
+          required
+          value={lastName}
+        />
+
         <label for="email">E-Mail</label>
         <input
           id="email"
@@ -96,11 +141,37 @@ if (Astro.request.method === "POST") {
           required
         />
 
-        <button type="submit">Registrieren</button>
+        <label for="role">Rolle</label>
+        <select id="role" name="role">
+          <option value={ROLES.LANDLORD} selected={role === ROLES.LANDLORD}>
+            Verwalter / Vermieter
+          </option>
+          <option value={ROLES.TENANT} selected={role === ROLES.TENANT}>
+            Mieter
+          </option>
+        </select>
+
+        <label for="organizationName">Organisationsname</label>
+        <input
+          id="organizationName"
+          name="organizationName"
+          type="text"
+          value={organizationName}
+        />
+
+        <label for="organizationId">Organisations-ID</label>
+        <input
+          id="organizationId"
+          name="organizationId"
+          type="text"
+          value={organizationId}
+        />
+
+        <button type="submit">Konto erstellen</button>
       </form>
 
       <div class="auth-links">
-        <a href={ROUTES.AUTH_LOGIN}>Bereits ein Konto? Jetzt anmelden</a>
+        <a href={ROUTES.AUTH_LOGIN}>Zum Login</a>
       </div>
     </div>
   </section>

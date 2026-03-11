@@ -8,6 +8,7 @@ let email = "";
 
 if (Astro.request.method === "POST") {
   const formData = await Astro.request.formData();
+
   email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
