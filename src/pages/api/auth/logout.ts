@@ -1,53 +1,11 @@
 import type { APIRoute } from "astro";
 import { createServerSupabaseClient } from "../../../lib/supabase/server";
+import { ROUTES } from "../../../lib/constants/routes";
 
-export const POST: APIRoute = async ({ cookies }) => {
-  try {
-    const supabase = createServerSupabaseClient(cookies);
-    const { error } = await supabase.auth.signOut();
+export const ALL: APIRoute = async ({ cookies, redirect }) => {
+  const supabase = createServerSupabaseClient(cookies);
 
-    if (error) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          errors: {
-            form: error.message || "Logout fehlgeschlagen.",
-          },
-        }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-    }
+  await supabase.auth.signOut();
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-  } catch {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        errors: {
-          form: "Logout konnte nicht verarbeitet werden.",
-        },
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-  }
+  return redirect(ROUTES.AUTH_LOGIN);
 };

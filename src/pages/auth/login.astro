@@ -1,103 +1,82 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { createServerSupabaseClient } from "../../lib/supabase/server";
+import { ROUTES } from "../../lib/constants/routes";
+
+let error = "";
+let email = "";
+
+if (Astro.request.method === "POST") {
+  const formData = await Astro.request.formData();
+  email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  if (!email || !password) {
+    error = "Bitte gib E-Mail und Passwort ein.";
+  } else {
+    const supabase = createServerSupabaseClient(Astro.cookies);
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      error = "Anmeldung fehlgeschlagen. Bitte prüfe deine Zugangsdaten.";
+    } else {
+      return Astro.redirect(ROUTES.APP_DASHBOARD);
+    }
+  }
+}
 ---
 
-<BaseLayout
-  title="Login | ImmobilienPro"
-  description="Melde dich bei ImmobilienPro an."
->
-  <main class="page-shell">
-    <div class="container--md">
-      <section class="card card--glass">
-        <div class="card__body stack">
-          <div class="section__header">
-            <span class="section__eyebrow">Login</span>
-            <h1>Bei ImmobilienPro anmelden</h1>
-            <p>
-              Melde dich mit deinem Konto an, um auf Verwaltung oder Mieterportal
-              zuzugreifen.
-            </p>
+<BaseLayout title="Login | ImmobilienPro">
+  <section class="auth-shell">
+    <div class="auth-card">
+      <div class="auth-header">
+        <p class="eyebrow">Login</p>
+        <h1>Bei ImmobilienPro anmelden</h1>
+        <p class="auth-copy">
+          Melde dich mit deinem Konto an, um auf Verwaltung oder Mieterportal
+          zuzugreifen.
+        </p>
+      </div>
+
+      {
+        error && (
+          <div class="auth-alert auth-alert-error" role="alert">
+            {error}
           </div>
-
-          <form id="login-form" class="stack">
-            <div class="input-group">
-              <label class="input-label" for="email">E-Mail</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="name@email.de"
-                required
-              />
-            </div>
-
-            <div class="input-group">
-              <label class="input-label" for="password">Passwort</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-              />
-            </div>
-
-            <div class="row">
-              <button class="button button--primary" type="submit">
-                Anmelden
-              </button>
-              <a class="button button--secondary" href="/auth/register">
-                Registrieren
-              </a>
-            </div>
-
-            <p id="login-status" class="form-status" aria-live="polite"></p>
-          </form>
-        </div>
-      </section>
-    </div>
-  </main>
-</BaseLayout>
-
-<script>
-  const form = document.querySelector("#login-form");
-  const statusEl = document.querySelector("#login-status");
-
-  form?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const formData = new FormData(form);
-    const payload = Object.fromEntries(formData.entries());
-
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        statusEl.textContent =
-          result?.errors?.form || "Login fehlgeschlagen.";
-        return;
+        )
       }
 
-      statusEl.textContent = "Login erfolgreich. Du wirst weitergeleitet.";
-      window.location.href = result.data.redirectTo || "/app/dashboard";
-    } catch {
-      statusEl.textContent = "Beim Login ist ein Fehler aufgetreten.";
-    }
-  });
-</script>
+      <form method="POST" class="auth-form">
+        <label for="email">E-Mail</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          required
+          value={email}
+        />
 
-<style>
-  .form-status {
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--text-sm);
-  }
-</style>
+        <label for="password">Passwort</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+
+        <button type="submit">Anmelden</button>
+      </form>
+
+      <div class="auth-links">
+        <a href={ROUTES.AUTH_FORGOT_PASSWORD}>Passwort vergessen?</a>
+        <a href={ROUTES.AUTH_REGISTER}>Registrieren</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
