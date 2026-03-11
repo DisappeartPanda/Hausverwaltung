@@ -1,0 +1,109 @@
+---
+interface Props {
+  tenantName?: string;
+  currentPath?: string;
+}
+
+const {
+  tenantName = "Max Mustermann",
+  currentPath = "/tenant",
+} = Astro.props;
+
+const items = [
+  { label: "Dashboard", href: "/tenant" },
+  { label: "Dokumente", href: "/tenant/dokumente" },
+  { label: "Mängel", href: "/tenant/maengel" },
+  { label: "Nachrichten", href: "/tenant/nachrichten" },
+  { label: "Vertrag", href: "/tenant/vertrag" },
+  { label: "Zahlungen", href: "/tenant/zahlungen" },
+];
+
+function isActive(path: string, href: string) {
+  if (href === "/tenant") return path === "/tenant";
+  return path === href || path.startsWith(`${href}/`);
+}
+---
+
+<div class="tenant-sidebar">
+  <div class="tenant-sidebar__header stack">
+    <a class="tenant-sidebar__brand" href="/tenant">ImmobilienPro</a>
+    <div class="tenant-sidebar__tenant">
+      <span class="badge badge--accent">Mieterportal</span>
+      <div class="tenant-sidebar__name">{tenantName}</div>
+    </div>
+  </div>
+
+  <nav class="tenant-sidebar__nav" aria-label="Mieter Navigation">
+    {
+      items.map((item) => (
+        <a
+          href={item.href}
+          class:list={[
+            "tenant-sidebar__link",
+            isActive(currentPath, item.href) && "tenant-sidebar__link--active",
+          ]}
+        >
+          {item.label}
+        </a>
+      ))
+    }
+  </nav>
+</div>
+
+<style>
+  .tenant-sidebar {
+    height: 100%;
+    padding: var(--space-6);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: var(--space-8);
+  }
+
+  .tenant-sidebar__header {
+    gap: var(--space-4);
+  }
+
+  .tenant-sidebar__brand {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-bold);
+  }
+
+  .tenant-sidebar__tenant {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .tenant-sidebar__name {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+  }
+
+  .tenant-sidebar__nav {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+  }
+
+  .tenant-sidebar__link {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.75rem 0.95rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+  }
+
+  .tenant-sidebar__link:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border);
+  }
+
+  .tenant-sidebar__link--active {
+    color: var(--text);
+    background: rgba(57, 224, 122, 0.1);
+    border-color: var(--border-accent-soft);
+    box-shadow: var(--shadow-glow-sm);
+  }
+</style>

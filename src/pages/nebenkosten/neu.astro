@@ -1,6 +1,6 @@
 ---
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import { supabase } from '../../lib/supabase/supabase';
+import { supabase } from '../../lib/supabase1/supabase';
 
 const { data: { session } } = await supabase.auth.getSession();
 if (!session) return Astro.redirect('/login');

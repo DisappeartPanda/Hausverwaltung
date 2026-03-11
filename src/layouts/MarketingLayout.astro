@@ -1,0 +1,27 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import Navigation from "../components/marketing/Navigation.astro";
+import Footer from "../components/marketing/Footer.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+  theme?: "dark-green" | "dark-blue" | "light";
+}
+
+const {
+  title = "ImmobilienPro",
+  description = "Modulare Plattform für Hausverwaltung, Sondereigentum und Mietpool.",
+  theme = "dark-green",
+} = Astro.props;
+---
+
+<BaseLayout title={title} description={description} theme={theme}>
+  <Navigation />
+
+  <main>
+    <slot />
+  </main>
+
+  <Footer />
+</BaseLayout>

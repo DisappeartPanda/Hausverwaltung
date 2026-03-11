@@ -1,0 +1,173 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getUnitDetailViewModel } from "../../../../lib/domain/units/unit-detail-service";
+import { getObjectListViewModel } from "../../../../lib/domain/objects/object-service";
+
+const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+const { unitId } = Astro.params;
+
+let unitDetail = null;
+let objects = [];
+
+try {
+  objects = await getObjectListViewModel(appContext.organizationId ?? "");
+} catch (error) {
+  console.error("Fehler beim Laden der Objekte:", error);
+}
+
+if (unitId) {
+  try {
+    unitDetail = await getUnitDetailViewModel(
+      appContext.organizationId ?? "",
+      unitId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden der Wohneinheit:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Wohneinheit bearbeiten | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  {
+    !unitDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Wohneinheit nicht gefunden</h1>
+          <p>Die angeforderte Wohneinheit konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/wohneinheiten">
+            Zurück zur Einheitenübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Wohneinheit bearbeiten</span>
+          <h1>{unitDetail.title}</h1>
+          <p>Bearbeite Zuordnung und Status dieser Einheit.</p>
+        </div>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <form class="stack" id="unit-update-form">
+              <input type="hidden" name="unitId" value={unitDetail.id} />
+
+              <div class="grid-auto">
+                <div class="input-group">
+                  <label class="input-label" for="title">Bezeichnung</label>
+                  <input id="title" name="title" value={unitDetail.title} />
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label" for="status">Status</label>
+                  <select id="status" name="status">
+                    <option value="frei" selected={unitDetail.status === "frei"}>
+                      Frei
+                    </option>
+                    <option value="vermietet" selected={unitDetail.status === "vermietet"}>
+                      Vermietet
+                    </option>
+                    <option value="reserviert" selected={unitDetail.status === "reserviert"}>
+                      Reserviert
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label" for="objectId">Objekt</label>
+                <select id="objectId" name="objectId">
+                  <option value="">Bitte Objekt wählen</option>
+                  {
+                    objects.map((object) => (
+                      <option
+                        value={object.id}
+                        selected={object.id === unitDetail.objectId}
+                      >
+                        {object.name}
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              <div class="row">
+                <button class="button button--primary" type="submit">
+                  Änderungen speichern
+                </button>
+                <a class="button button--secondary" href={`/app/wohneinheiten/${unitDetail.id}`}>
+                  Abbrechen
+                </a>
+              </div>
+
+              <p id="unit-update-status" class="form-status" aria-live="polite"></p>
+            </form>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#unit-update-form");
+  const statusEl = document.querySelector("#unit-update-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/units/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Wohneinheit konnte nicht gespeichert werden.";
+        return;
+      }
+
+      statusEl.textContent = "Wohneinheit erfolgreich aktualisiert.";
+      window.location.href = `/app/wohneinheiten/${payload.unitId}`;
+    } catch {
+      statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

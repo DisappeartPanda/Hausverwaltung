@@ -1,0 +1,48 @@
+---
+import type { ModuleKey } from "../../lib/constants/module-keys";
+
+interface Props {
+  organizationName?: string;
+  activeModules?: ModuleKey[];
+  title?: string;
+  description?: string;
+}
+
+const {
+  organizationName = "Musterverwaltung GmbH",
+  activeModules = [],
+  title = "Deine Verwaltung auf einen Blick",
+  description = "Alle wichtigen Kennzahlen, Bereiche und nächsten Schritte in einer Ansicht.",
+} = Astro.props;
+---
+
+<section class="dashboard-welcome panel">
+  <div class="panel__body dashboard-welcome__inner">
+    <div class="stack">
+      <span class="section__eyebrow">Dashboard</span>
+      <h1>{title}</h1>
+      <p>{description}</p>
+
+      <div class="dashboard-welcome__meta">
+        <span class="badge">{organizationName}</span>
+
+        {activeModules.map((module) => (
+          <span class="badge badge--accent">{module}</span>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .dashboard-welcome__inner {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .dashboard-welcome__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+</style>

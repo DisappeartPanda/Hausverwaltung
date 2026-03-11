@@ -1,0 +1,119 @@
+---
+import AppLayout from "../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../lib/constants/module-keys";
+
+const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+---
+
+<AppLayout
+  title="Dokument hochladen | ImmobilienPro"
+  organizationName="Musterverwaltung GmbH"
+  activeModules={activeModules}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Dokumente</span>
+      <h1>Dokument hochladen</h1>
+      <p>
+        Lade Verträge, Abrechnungen oder sonstige Unterlagen für Mieter und
+        Einheiten hoch.
+      </p>
+    </div>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <form class="stack" id="document-upload-form">
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="title">Titel</label>
+              <input id="title" name="title" placeholder="z. B. Mietvertrag Anna Becker" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="category">Kategorie</label>
+              <select id="category" name="category">
+                <option value="vertrag">Vertrag</option>
+                <option value="abrechnung">Abrechnung</option>
+                <option value="protokoll">Protokoll</option>
+                <option value="sonstiges">Sonstiges</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="targetType">Zieltyp</label>
+              <select id="targetType" name="targetType">
+                <option value="tenant">Mieter</option>
+                <option value="unit">Wohneinheit</option>
+                <option value="object">Objekt</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="targetId">Ziel</label>
+              <input id="targetId" name="targetId" placeholder="z. B. WE 3.2 oder Anna Becker" />
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="file">Datei</label>
+            <input id="file" name="file" type="file" />
+          </div>
+
+          <div class="row">
+            <button class="button button--primary" type="submit">
+              Dokument hochladen
+            </button>
+            <a class="button button--secondary" href="/app/dokumente">
+              Abbrechen
+            </a>
+          </div>
+
+          <p class="form-status" id="document-upload-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#document-upload-form");
+  const statusEl = document.querySelector("#document-upload-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Dokument konnte nicht hochgeladen werden.";
+        return;
+      }
+
+      statusEl.textContent = "Dokument erfolgreich hochgeladen.";
+      form.reset();
+    } catch {
+      statusEl.textContent = "Beim Upload ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

@@ -1,0 +1,63 @@
+---
+import TenantLayout from "../../layouts/TenantLayout.astro";
+import { requireTenantSession } from "../../lib/auth/guards";
+
+const session = await requireTenantSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const documents = [
+  {
+    title: "Mietvertrag",
+    type: "PDF",
+    date: "12.01.2026",
+  },
+  {
+    title: "Nebenkostenabrechnung 2025",
+    type: "PDF",
+    date: "03.02.2026",
+  },
+  {
+    title: "Hausordnung",
+    type: "PDF",
+    date: "15.12.2025",
+  },
+];
+---
+
+<TenantLayout
+  title="Dokumente | Mieterportal"
+  tenantName={session.email ?? "Mieter"}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Dokumente</span>
+      <h1>Deine Unterlagen</h1>
+      <p>
+        Hier findest du alle wichtigen Dokumente rund um dein Mietverhältnis.
+      </p>
+    </div>
+
+    <div class="stack">
+      {
+        documents.map((document) => (
+          <article class="card card--glass">
+            <div class="card__body row row--between">
+              <div class="stack" style="gap: 0.35rem;">
+                <span class="badge">{document.type}</span>
+                <h3>{document.title}</h3>
+                <p>Bereitgestellt am {document.date}</p>
+              </div>
+
+              <a class="button button--primary" href="#">
+                Öffnen
+              </a>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</TenantLayout>

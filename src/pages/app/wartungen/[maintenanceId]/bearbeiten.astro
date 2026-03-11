@@ -1,0 +1,195 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getMaintenanceDetailViewModel } from "../../../../lib/domain/maintenance/maintenance-detail-service";
+import { getObjectListViewModel } from "../../../../lib/domain/objects/object-service";
+
+const activeModules = [MODULE_KEYS.HAUSVERWALTUNG];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+const { maintenanceId } = Astro.params;
+
+let maintenanceDetail = null;
+let objects = [];
+
+try {
+  objects = await getObjectListViewModel(appContext.organizationId ?? "");
+} catch (error) {
+  console.error("Fehler beim Laden der Objekte:", error);
+}
+
+if (maintenanceId) {
+  try {
+    maintenanceDetail = await getMaintenanceDetailViewModel(
+      appContext.organizationId ?? "",
+      maintenanceId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden der Wartung:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Wartung bearbeiten | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  {
+    !maintenanceDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Wartung nicht gefunden</h1>
+          <p>Die angeforderte Wartung konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/wartungen">
+            Zurück zur Wartungsübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Wartung bearbeiten</span>
+          <h1>{maintenanceDetail.title}</h1>
+          <p>Bearbeite Termin, Status und Zuordnung dieser Wartung.</p>
+        </div>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <form class="stack" id="maintenance-update-form">
+              <input
+                type="hidden"
+                name="maintenanceId"
+                value={maintenanceDetail.id}
+              />
+
+              <div class="input-group">
+                <label class="input-label" for="title">Titel</label>
+                <input id="title" name="title" value={maintenanceDetail.title} />
+              </div>
+
+              <div class="grid-auto">
+                <div class="input-group">
+                  <label class="input-label" for="objectId">Objekt</label>
+                  <select id="objectId" name="objectId">
+                    <option value="">Bitte Objekt wählen</option>
+                    {
+                      objects.map((object) => (
+                        <option
+                          value={object.id}
+                          selected={object.name === maintenanceDetail.objectLabel}
+                        >
+                          {object.name}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label" for="scheduledDate">Geplantes Datum</label>
+                  <input
+                    id="scheduledDate"
+                    name="scheduledDate"
+                    type="date"
+                    value={maintenanceDetail.scheduledDate ?? ""}
+                  />
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label" for="status">Status</label>
+                <select id="status" name="status">
+                  <option value="offen" selected={maintenanceDetail.status === "offen"}>
+                    Offen
+                  </option>
+                  <option value="geplant" selected={maintenanceDetail.status === "geplant"}>
+                    Geplant
+                  </option>
+                  <option value="beauftragt" selected={maintenanceDetail.status === "beauftragt"}>
+                    Beauftragt
+                  </option>
+                  <option value="abgeschlossen" selected={maintenanceDetail.status === "abgeschlossen"}>
+                    Abgeschlossen
+                  </option>
+                </select>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label" for="note">Notiz</label>
+                <textarea id="note" name="note">{maintenanceDetail.note ?? ""}</textarea>
+              </div>
+
+              <div class="row">
+                <button class="button button--primary" type="submit">
+                  Änderungen speichern
+                </button>
+                <a class="button button--secondary" href={`/app/wartungen/${maintenanceDetail.id}`}>
+                  Abbrechen
+                </a>
+              </div>
+
+              <p id="maintenance-update-status" class="form-status" aria-live="polite"></p>
+            </form>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#maintenance-update-form");
+  const statusEl = document.querySelector("#maintenance-update-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/maintenance/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Wartung konnte nicht gespeichert werden.";
+        return;
+      }
+
+      statusEl.textContent = "Wartung erfolgreich aktualisiert.";
+      window.location.href = `/app/wartungen/${payload.maintenanceId}`;
+    } catch {
+      statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

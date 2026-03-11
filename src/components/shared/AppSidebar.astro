@@ -1,0 +1,89 @@
+---
+import {
+  getAppNavigation,
+  isNavigationItemActive,
+} from "../../lib/access/navigation-access";
+import type { ModuleKey } from "../../lib/constants/module-keys";
+
+interface Props {
+  activeModules?: ModuleKey[];
+  currentPath?: string;
+}
+
+const {
+  activeModules = [],
+  currentPath = "/app/dashboard",
+} = Astro.props;
+
+const items = getAppNavigation({ activeModules });
+---
+
+<div class="app-sidebar">
+  <div class="app-sidebar__brand">
+    <a href="/app/dashboard">ImmobilienPro</a>
+  </div>
+
+  <nav class="app-sidebar__nav" aria-label="App Navigation">
+    {
+      items.map((item) => {
+        const isActive = isNavigationItemActive(currentPath, item.href);
+
+        return (
+          <a
+            href={item.href}
+            class:list={[
+              "app-sidebar__link",
+              isActive && "app-sidebar__link--active",
+            ]}
+          >
+            {item.label}
+          </a>
+        );
+      })
+    }
+  </nav>
+</div>
+
+<style>
+  .app-sidebar {
+    height: 100%;
+    padding: var(--space-6);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: var(--space-8);
+  }
+
+  .app-sidebar__brand a {
+    font-size: var(--text-lg);
+    font-weight: var(--weight-bold);
+  }
+
+  .app-sidebar__nav {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+  }
+
+  .app-sidebar__link {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.75rem 0.95rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+  }
+
+  .app-sidebar__link:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border);
+  }
+
+  .app-sidebar__link--active {
+    color: var(--text);
+    background: rgba(57, 224, 122, 0.1);
+    border-color: var(--border-accent-soft);
+    box-shadow: var(--shadow-glow-sm);
+  }
+</style>

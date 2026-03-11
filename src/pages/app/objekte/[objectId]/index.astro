@@ -1,0 +1,87 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppSession } from "../../../../lib/auth/session";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { getObjectDetailViewModel } from "../../../../lib/domain/objects/object-detail-service";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+
+const session = await getAppSession(Astro);
+const appContext = await getAppContext(session);
+
+const { objectId } = Astro.params;
+
+let objectDetail = null;
+
+if (objectId) {
+  try {
+    objectDetail = await getObjectDetailViewModel(
+      appContext.organizationId,
+      objectId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden des Objekts:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Objektdetails | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+>
+  {
+    !objectDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Objekt nicht gefunden</h1>
+          <p>Das angeforderte Objekt konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/objekte">
+            Zurück zur Objektübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Objekt</span>
+          <h1>{objectDetail.name}</h1>
+          <p>
+            {objectDetail.streetLabel}, {objectDetail.postalCodeLabel}, {objectDetail.city}
+          </p>
+        </div>
+
+        <section class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Einheiten</div>
+            <div class="kpi-card__value">{objectDetail.unitsCount}</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Offene Mängel</div>
+            <div class="kpi-card__value">{objectDetail.openDefectsCount}</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Wartungen</div>
+            <div class="kpi-card__value">{objectDetail.maintenanceCount}</div>
+          </article>
+        </section>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <span class="badge badge--accent">{objectDetail.unitCountLabel}</span>
+            <h3>Objektübersicht</h3>
+            <p>Von hier aus kannst du später Eigentümer, Wartungen und Rücklagen anbinden.</p>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>

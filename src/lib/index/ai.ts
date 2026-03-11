@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import type { UserRole } from '../supabase/role';
-import { normalizeRole } from '../supabase/role';
+import type { UserRole } from '../supabase1/role';
+import { normalizeRole } from '../supabase1/role';
 
 type AiRequestBody = {
   message: string;

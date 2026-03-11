@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseServer } from '../supabase/supabaseServer';
+import { getSupabaseServer } from '../supabase1/supabaseServer';
 import type { DashboardMode, ResolvedDashboardMode } from './dashboardModes';
 import { resolveDashboardMode } from './dashboardModes';
 

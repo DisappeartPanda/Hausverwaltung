@@ -1,0 +1,218 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getDefectDetailViewModel } from "../../../../lib/domain/defects/defect-detail-service";
+import { getObjectListViewModel } from "../../../../lib/domain/objects/object-service";
+import { getUnitListViewModel } from "../../../../lib/domain/units/unit-service";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+const { defectId } = Astro.params;
+
+let defectDetail = null;
+let objects = [];
+let units = [];
+
+try {
+  objects = await getObjectListViewModel(appContext.organizationId ?? "");
+  units = await getUnitListViewModel(appContext.organizationId ?? "");
+} catch (error) {
+  console.error("Fehler beim Laden der Zuordnungen:", error);
+}
+
+if (defectId) {
+  try {
+    defectDetail = await getDefectDetailViewModel(
+      appContext.organizationId ?? "",
+      defectId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden des Mangels:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Mangel bearbeiten | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  {
+    !defectDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Mangel nicht gefunden</h1>
+          <p>Der angeforderte Mangel konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/maengel">
+            Zurück zur Mängelübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Mangel bearbeiten</span>
+          <h1>{defectDetail.title}</h1>
+          <p>Bearbeite Status, Ebene und Zuordnung dieses Mangels.</p>
+        </div>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <form class="stack" id="defect-update-form">
+              <input type="hidden" name="defectId" value={defectDetail.id} />
+
+              <div class="input-group">
+                <label class="input-label" for="title">Titel</label>
+                <input id="title" name="title" value={defectDetail.title} />
+              </div>
+
+              <div class="grid-auto">
+                <div class="input-group">
+                  <label class="input-label" for="level">Ebene</label>
+                  <select id="level" name="level">
+                    <option value="building" selected={defectDetail.level === "building"}>
+                      Gebäude
+                    </option>
+                    <option value="unit" selected={defectDetail.level === "unit"}>
+                      Wohneinheit
+                    </option>
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label" for="status">Status</label>
+                  <select id="status" name="status">
+                    <option value="offen" selected={defectDetail.status === "offen"}>
+                      Offen
+                    </option>
+                    <option value="in_bearbeitung" selected={defectDetail.status === "in_bearbeitung"}>
+                      In Bearbeitung
+                    </option>
+                    <option value="geplant" selected={defectDetail.status === "geplant"}>
+                      Geplant
+                    </option>
+                    <option value="geschlossen" selected={defectDetail.status === "geschlossen"}>
+                      Geschlossen
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid-auto">
+                <div class="input-group">
+                  <label class="input-label" for="objectId">Objekt</label>
+                  <select id="objectId" name="objectId">
+                    <option value="">Kein Objekt</option>
+                    {
+                      objects.map((object) => (
+                        <option
+                          value={object.id}
+                          selected={object.id === defectDetail.objectId}
+                        >
+                          {object.name}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label" for="unitId">Wohneinheit</label>
+                  <select id="unitId" name="unitId">
+                    <option value="">Keine Wohneinheit</option>
+                    {
+                      units.map((unit) => (
+                        <option
+                          value={unit.id}
+                          selected={unit.id === defectDetail.unitId}
+                        >
+                          {unit.title}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <div class="input-group">
+                <label class="input-label" for="description">Beschreibung</label>
+                <textarea id="description" name="description">{defectDetail.description ?? ""}</textarea>
+              </div>
+
+              <div class="row">
+                <button class="button button--primary" type="submit">
+                  Änderungen speichern
+                </button>
+                <a class="button button--secondary" href={`/app/maengel/${defectDetail.id}`}>
+                  Abbrechen
+                </a>
+              </div>
+
+              <p id="defect-update-status" class="form-status" aria-live="polite"></p>
+            </form>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#defect-update-form");
+  const statusEl = document.querySelector("#defect-update-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/defects/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Mangel konnte nicht gespeichert werden.";
+        return;
+      }
+
+      statusEl.textContent = "Mangel erfolgreich aktualisiert.";
+      window.location.href = `/app/maengel/${payload.defectId}`;
+    } catch {
+      statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

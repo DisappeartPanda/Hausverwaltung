@@ -1,0 +1,158 @@
+---
+import {
+  BILLING_MODULES,
+} from "../../lib/billing/modules";
+import type { ModuleKey } from "../../lib/constants/module-keys";
+import type { UsageStatus } from "../../lib/access/usage-access";
+
+interface Props {
+  activeModules?: ModuleKey[];
+  usageStatuses?: UsageStatus[];
+}
+
+const {
+  activeModules = [],
+  usageStatuses = [],
+} = Astro.props;
+
+const activeModuleDefinitions = BILLING_MODULES.filter((module) =>
+  activeModules.includes(module.key),
+);
+
+const monthlyTotal = activeModuleDefinitions.reduce(
+  (sum, module) => sum + module.priceMonthly,
+  0,
+);
+---
+
+<div class="stack">
+  <section class="card card--glass">
+    <div class="card__body stack">
+      <div class="row row--between">
+        <div class="stack" style="gap: 0.4rem;">
+          <span class="badge badge--accent">Aktives Setup</span>
+          <h3>Gebuchte Module und aktueller Status</h3>
+          <p>Monatliche Abrechnung · Status aktiv</p>
+        </div>
+
+        <div class="billing-total">
+          <span class="billing-total__label">Monatlich</span>
+          <span class="billing-total__value">{monthlyTotal} €</span>
+        </div>
+      </div>
+
+      <div class="grid-auto">
+        {
+          BILLING_MODULES.map((module) => {
+            const isActive = activeModules.includes(module.key);
+
+            return (
+              <article class="card card--glass card--glow">
+                <div class="card__body stack">
+                  <div class="row row--between">
+                    <span class="badge badge--accent">{module.name}</span>
+                    <span class="badge">{isActive ? "Aktiv" : "Verfügbar"}</span>
+                  </div>
+
+                  <p>{module.shortDescription}</p>
+
+                  <div class="pricing-plan__price">
+                    <span class="pricing-plan__amount">{module.priceMonthly} €</span>
+                    <span class="pricing-plan__suffix">/ Monat</span>
+                  </div>
+
+                  <a
+                    class={isActive ? "button button--secondary" : "button button--primary"}
+                    href="/pricing"
+                  >
+                    {isActive ? "Bereits aktiv" : "Modul hinzufügen"}
+                  </a>
+                </div>
+              </article>
+            );
+          })
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="card card--glass">
+    <div class="card__body stack">
+      <div class="stack" style="gap: 0.4rem;">
+        <span class="badge">Nutzung</span>
+        <h3>Aktuelle Nutzung und verfügbare Limits</h3>
+        <p>
+          So weit ist dein aktuelles Setup bereits ausgelastet.
+        </p>
+      </div>
+
+      <div class="grid-auto">
+        {
+          usageStatuses.map((status) => (
+            <article class="kpi-card">
+              <div class="kpi-card__label">{status.key}</div>
+              <div class="kpi-card__value">
+                {status.isUnlimited
+                  ? `${status.current} / ∞`
+                  : `${status.current} / ${status.limit ?? 0}`}
+              </div>
+
+              <p style="margin-bottom: 0;">
+                {status.isUnlimited
+                  ? "Unbegrenzt verfügbar"
+                  : `Verbleibend: ${status.remaining ?? 0}`}
+              </p>
+            </article>
+          ))
+        }
+      </div>
+
+      <div class="row">
+        <a class="button button--primary" href="/pricing">
+          Upgrade ansehen
+        </a>
+        <a class="button button--secondary" href="/settings/module">
+          Module prüfen
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<style>
+  .billing-total {
+    display: grid;
+    gap: 0.2rem;
+    text-align: right;
+  }
+
+  .billing-total__label {
+    color: var(--text-soft);
+    font-size: var(--text-sm);
+  }
+
+  .billing-total__value {
+    color: var(--text);
+    font-size: clamp(1.75rem, 4vw, 2.4rem);
+    line-height: 1;
+    font-weight: var(--weight-bold);
+  }
+
+  .pricing-plan__price {
+    display: flex;
+    align-items: end;
+    gap: var(--space-2);
+  }
+
+  .pricing-plan__amount {
+    font-size: clamp(1.75rem, 4vw, 2.4rem);
+    line-height: 1;
+    font-weight: var(--weight-bold);
+    color: var(--text);
+  }
+
+  .pricing-plan__suffix {
+    color: var(--text-muted);
+    padding-bottom: 0.25rem;
+  }
+</style>

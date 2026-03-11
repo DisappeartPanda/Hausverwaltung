@@ -1,0 +1,87 @@
+---
+import { BILLING_MODULES } from "../../lib/billing/modules";
+import type { ModuleKey } from "../../lib/constants/module-keys";
+
+interface Props {
+  activeModules?: ModuleKey[];
+}
+
+const { activeModules = [] } = Astro.props;
+---
+
+<section class="panel">
+  <div class="panel__body stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Module</span>
+      <h2>Gebuchte und verfügbare Module</h2>
+      <p>
+        Sieh auf einen Blick, welche Module aktiv sind und welche du später
+        ergänzen kannst.
+      </p>
+    </div>
+
+    <div class="grid-auto">
+      {
+        BILLING_MODULES.map((module) => {
+          const isActive = activeModules.includes(module.key);
+
+          return (
+            <article class="card card--glass card--glow">
+              <div class="card__body stack">
+                <div class="row row--between">
+                  <span class="badge badge--accent">{module.name}</span>
+                  <span class="badge">{isActive ? "Aktiv" : "Verfügbar"}</span>
+                </div>
+
+                <p>{module.shortDescription}</p>
+
+                <div class="pricing-plan__price">
+                  <span class="pricing-plan__amount">{module.priceMonthly} €</span>
+                  <span class="pricing-plan__suffix">/ Monat</span>
+                </div>
+
+                <div class="stack" style="gap: 0.35rem;">
+                  {module.features.slice(0, 4).map((feature) => (
+                    <div class="pricing-plan__feature">• {feature}</div>
+                  ))}
+                </div>
+
+                <a
+                  class={isActive ? "button button--secondary" : "button button--primary"}
+                  href="/pricing"
+                >
+                  {isActive ? "Bereits aktiv" : "Modul hinzufügen"}
+                </a>
+              </div>
+            </article>
+          );
+        })
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .pricing-plan__price {
+    display: flex;
+    align-items: end;
+    gap: var(--space-2);
+  }
+
+  .pricing-plan__amount {
+    font-size: clamp(1.75rem, 4vw, 2.4rem);
+    line-height: 1;
+    font-weight: var(--weight-bold);
+    color: var(--text);
+  }
+
+  .pricing-plan__suffix {
+    color: var(--text-muted);
+    padding-bottom: 0.25rem;
+  }
+
+  .pricing-plan__feature {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

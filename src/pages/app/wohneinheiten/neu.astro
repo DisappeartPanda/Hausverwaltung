@@ -1,0 +1,127 @@
+---
+import AppLayout from "../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../lib/constants/module-keys";
+import { getAppSession } from "../../../lib/auth/session";
+import { getAppContext } from "../../../lib/utils/app-context";
+import { getObjectListViewModel } from "../../../lib/domain/objects/object-service";
+
+const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+
+const session = await getAppSession(Astro);
+const appContext = await getAppContext(session);
+
+let objects = [];
+
+try {
+  objects = await getObjectListViewModel(appContext.organizationId);
+} catch (error) {
+  console.error("Fehler beim Laden der Objekte:", error);
+}
+---
+
+<AppLayout
+  title="Neue Wohneinheit | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Wohneinheiten</span>
+      <h1>Neue Wohneinheit anlegen</h1>
+      <p>
+        Erfasse eine neue Einheit und ordne sie direkt einem Objekt zu.
+      </p>
+    </div>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <form class="stack" id="unit-create-form">
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="title">Bezeichnung</label>
+              <input id="title" name="title" placeholder="z. B. WE 3.2" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="status">Status</label>
+              <select id="status" name="status">
+                <option value="frei">Frei</option>
+                <option value="vermietet">Vermietet</option>
+                <option value="reserviert">Reserviert</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="objectId">Objekt</label>
+            <select id="objectId" name="objectId">
+              <option value="">Bitte Objekt wählen</option>
+              {
+                objects.map((object) => (
+                  <option value={object.id}>{object.name}</option>
+                ))
+              }
+            </select>
+          </div>
+
+          <div class="row">
+            <button class="button button--primary" type="submit">
+              Wohneinheit speichern
+            </button>
+            <a class="button button--secondary" href="/app/wohneinheiten">
+              Abbrechen
+            </a>
+          </div>
+
+          <p class="form-status" id="unit-form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#unit-create-form");
+  const statusEl = document.querySelector("#unit-form-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/units/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Wohneinheit konnte nicht gespeichert werden.";
+        return;
+      }
+
+      statusEl.textContent = "Wohneinheit erfolgreich angelegt.";
+      form.reset();
+    } catch {
+      statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

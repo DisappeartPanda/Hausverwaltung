@@ -1,0 +1,90 @@
+---
+import SettingsLayout from "../../layouts/SettingsLayout.astro";
+import { MODULE_KEYS } from "../../lib/constants/module-keys";
+import { getAppContext } from "../../lib/utils/app-context";
+import { requireLandlordSession } from "../../lib/auth/guards";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+---
+
+<SettingsLayout
+  title="Einstellungen | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Einstellungen</span>
+      <h1>Zentrale Einstellungen</h1>
+      <p>
+        Verwalte Design, Konto, Module und Abrechnung an einem zentralen Ort.
+      </p>
+    </div>
+
+    <div class="grid-auto">
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <span class="badge badge--accent">Design</span>
+          <h3>Theme anpassen</h3>
+          <p>
+            Wähle das passende Erscheinungsbild für deine Organisation.
+          </p>
+          <a class="button button--secondary" href="/settings/design">
+            Design öffnen
+          </a>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <span class="badge badge--accent">Module</span>
+          <h3>Module verwalten</h3>
+          <p>
+            Sieh dir aktive Module an und erweitere dein Setup bei Bedarf.
+          </p>
+          <a class="button button--secondary" href="/settings/module">
+            Module öffnen
+          </a>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <span class="badge badge--accent">Abrechnung</span>
+          <h3>Abo und Limits</h3>
+          <p>
+            Prüfe deine Nutzung, dein aktives Setup und mögliche Upgrades.
+          </p>
+          <a class="button button--secondary" href="/settings/abrechnung">
+            Abrechnung öffnen
+          </a>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <span class="badge badge--accent">Konto</span>
+          <h3>Kontoeinstellungen</h3>
+          <p>
+            Verwalte Ansprechpartner, E-Mail-Adresse und grundlegende Angaben.
+          </p>
+          <a class="button button--secondary" href="/settings/konto">
+            Konto öffnen
+          </a>
+        </div>
+      </article>
+    </div>
+  </div>
+</SettingsLayout>

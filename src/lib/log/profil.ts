@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { requireLandlordSession } from '../supabase/serverAuth';
+import { requireLandlordSession } from '../supabase1/serverAuth';
 
 const txt = (v: FormDataEntryValue | null) => (typeof v === 'string' ? v.trim() : '');
 const int = (v: FormDataEntryValue | null) => {

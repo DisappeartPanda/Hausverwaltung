@@ -1,0 +1,45 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import AppSidebar from "../components/shared/AppSidebar.astro";
+import AppTopbar from "../components/shared/AppTopbar.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+  theme?: "dark-green" | "dark-blue" | "light";
+  organizationName?: string;
+  activeModules?: string[];
+  currentPath?: string;
+  userEmail?: string | null;
+}
+
+const {
+  title = "ImmobilienPro App",
+  description = "Verwaltung von Immobilien, Wohneinheiten, Mietern und Mietpool.",
+  theme = "dark-green",
+  organizationName = "Musterverwaltung GmbH",
+  activeModules = [],
+  currentPath = Astro.url.pathname,
+  userEmail = null,
+} = Astro.props;
+---
+
+<BaseLayout title={title} description={description} theme={theme}>
+  <div class="app-shell">
+    <aside class="app-shell__sidebar">
+      <AppSidebar activeModules={activeModules} currentPath={currentPath} />
+    </aside>
+
+    <div class="app-shell__main">
+      <AppTopbar
+        organizationName={organizationName}
+        activeModules={activeModules}
+        userEmail={userEmail}
+      />
+
+      <main class="app-shell__content">
+        <slot />
+      </main>
+    </div>
+  </div>
+</BaseLayout>

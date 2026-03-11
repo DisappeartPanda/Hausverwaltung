@@ -1,0 +1,86 @@
+---
+import SettingsLayout from "../../layouts/SettingsLayout.astro";
+import { MODULE_KEYS } from "../../lib/constants/module-keys";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+---
+
+<SettingsLayout
+  title="Organisation | ImmobilienPro"
+  organizationName="Musterverwaltung GmbH"
+  activeModules={activeModules}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Organisation</span>
+      <h1>Organisationsdaten</h1>
+      <p>
+        Verwalte die Stammdaten deiner Organisation, Ansprechpartner und
+        grundlegende Einstellungen.
+      </p>
+    </div>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <h3>Allgemeine Angaben</h3>
+
+        <div class="grid-auto">
+          <div class="input-group">
+            <label class="input-label">Organisationsname</label>
+            <input value="Musterverwaltung GmbH" />
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Slug</label>
+            <input value="musterverwaltung" />
+          </div>
+        </div>
+
+        <div class="grid-auto">
+          <div class="input-group">
+            <label class="input-label">Support-E-Mail</label>
+            <input value="support@musterverwaltung.de" />
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Telefon</label>
+            <input value="+49 30 12345678" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="button button--primary" type="button">
+            Organisationsdaten speichern
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <h3>Adresse</h3>
+
+        <div class="grid-auto">
+          <div class="input-group">
+            <label class="input-label">Straße</label>
+            <input value="Musterstraße 1" />
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">PLZ / Ort</label>
+            <input value="10115 Berlin" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="button button--secondary" type="button">
+            Adresse aktualisieren
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+</SettingsLayout>

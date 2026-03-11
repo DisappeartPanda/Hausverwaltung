@@ -1,0 +1,64 @@
+---
+import TenantLayout from "../../../layouts/TenantLayout.astro";
+---
+
+<TenantLayout
+  title="Vertrag | Mieterportal"
+  tenantName="Max Mustermann"
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Vertrag</span>
+      <h1>Dein Mietvertrag</h1>
+      <p>
+        Hier siehst du die wichtigsten Vertragsdaten und kannst deine Unterlagen
+        schnell aufrufen.
+      </p>
+    </div>
+
+    <section class="kpi-grid">
+      <article class="kpi-card">
+        <div class="kpi-card__label">Wohnung</div>
+        <div class="kpi-card__value">WE 3.2</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-card__label">Mietbeginn</div>
+        <div class="kpi-card__value">01.02.2025</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-card__label">Kaltmiete</div>
+        <div class="kpi-card__value">950 €</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-card__label">Nebenkosten</div>
+        <div class="kpi-card__value">220 €</div>
+      </article>
+    </section>
+
+    <article class="card card--glass">
+      <div class="card__body stack">
+        <span class="badge badge--accent">Vertragsübersicht</span>
+        <h3>Wichtige Vertragsinformationen</h3>
+
+        <div class="stack">
+          <p><strong>Adresse:</strong> Musterstraße 12, 3. OG links</p>
+          <p><strong>Vertragsart:</strong> Unbefristeter Mietvertrag</p>
+          <p><strong>Kündigungsfrist:</strong> 3 Monate</p>
+          <p><strong>Kaution:</strong> 2.850 €</p>
+        </div>
+
+        <div class="row">
+          <a class="button button--primary" href="/tenant/dokumente">
+            Vertrag öffnen
+          </a>
+          <a class="button button--secondary" href="/tenant/nachrichten">
+            Rückfrage senden
+          </a>
+        </div>
+      </div>
+    </article>
+  </div>
+</TenantLayout>

@@ -1,0 +1,37 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+  requiredModuleName?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+}
+
+const {
+  title = "Funktion nicht freigeschaltet",
+  description = "Diese Funktion ist in deinem aktuellen Modul-Setup nicht enthalten.",
+  requiredModuleName = "Zusatzmodul",
+  ctaLabel = "Module ansehen",
+  ctaHref = "/settings/module",
+} = Astro.props;
+---
+
+<section class="card card--glass">
+  <div class="card__body stack">
+    <span class="badge badge--accent">Upgrade erforderlich</span>
+    <h3>{title}</h3>
+    <p>{description}</p>
+    <p>
+      Benötigtes Modul: <strong>{requiredModuleName}</strong>
+    </p>
+
+    <div class="row">
+      <a class="button button--primary" href={ctaHref}>
+        {ctaLabel}
+      </a>
+      <a class="button button--secondary" href="/pricing">
+        Preise ansehen
+      </a>
+    </div>
+  </div>
+</section>

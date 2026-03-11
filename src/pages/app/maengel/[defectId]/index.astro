@@ -1,0 +1,93 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getDefectDetailViewModel } from "../../../../lib/domain/defects/defect-detail-service";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+const { defectId } = Astro.params;
+
+let defectDetail = null;
+
+if (defectId) {
+  try {
+    defectDetail = await getDefectDetailViewModel(
+      appContext.organizationId ?? "",
+      defectId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden des Mangels:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Mangel | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  {
+    !defectDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Mangel nicht gefunden</h1>
+          <p>Der angeforderte Mangel konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/maengel">
+            Zurück zur Mängelübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Mangel</span>
+          <h1>{defectDetail.title}</h1>
+          <p>{defectDetail.locationLabel}</p>
+        </div>
+
+        <section class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Status</div>
+            <div class="kpi-card__value">{defectDetail.statusLabel}</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Ebene</div>
+            <div class="kpi-card__value">{defectDetail.levelLabel}</div>
+          </article>
+        </section>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <h3>Beschreibung</h3>
+            <p>{defectDetail.descriptionLabel}</p>
+
+            <div class="row">
+              <a
+                class="button button--secondary"
+                href={`/app/maengel/${defectDetail.id}/bearbeiten`}
+              >
+                Bearbeiten
+              </a>
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>

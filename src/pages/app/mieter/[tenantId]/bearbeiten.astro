@@ -1,0 +1,199 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getTenantDetailViewModel } from "../../../../lib/domain/tenants/tenant-detail-service";
+import { getUnitListViewModel } from "../../../../lib/domain/units/unit-service";
+
+const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+const { tenantId } = Astro.params;
+
+let tenantDetail = null;
+let units = [];
+
+try {
+  units = await getUnitListViewModel(appContext.organizationId ?? "");
+} catch (error) {
+  console.error("Fehler beim Laden der Wohneinheiten:", error);
+}
+
+if (tenantId) {
+  try {
+    tenantDetail = await getTenantDetailViewModel(
+      appContext.organizationId ?? "",
+      tenantId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden des Mieters:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Mieter bearbeiten | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  {
+    !tenantDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Mieter nicht gefunden</h1>
+          <p>Der angeforderte Mieter konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/mieter">
+            Zurück zur Mieterübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Mieter bearbeiten</span>
+          <h1>{tenantDetail.fullName}</h1>
+          <p>Bearbeite Stammdaten und Zuordnung dieses Mieters.</p>
+        </div>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <form class="stack" id="tenant-update-form">
+              <input type="hidden" name="tenantId" value={tenantDetail.id} />
+
+              <div class="grid-auto">
+                <div class="input-group">
+                  <label class="input-label" for="firstName">Vorname</label>
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    value={tenantDetail.firstName}
+                  />
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label" for="lastName">Nachname</label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    value={tenantDetail.lastName}
+                  />
+                </div>
+              </div>
+
+              <div class="grid-auto">
+                <div class="input-group">
+                  <label class="input-label" for="email">E-Mail</label>
+                  <input id="email" name="email" value={tenantDetail.email} />
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label" for="phone">Telefon</label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    value={tenantDetail.phone ?? ""}
+                  />
+                </div>
+              </div>
+
+              <div class="grid-auto">
+                <div class="input-group">
+                  <label class="input-label" for="unitId">Wohneinheit</label>
+                  <select id="unitId" name="unitId">
+                    <option value="">Keine Einheit</option>
+                    {
+                      units.map((unit) => (
+                        <option
+                          value={unit.id}
+                          selected={unit.id === tenantDetail.unitId}
+                        >
+                          {unit.title}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div class="input-group">
+                  <label class="input-label" for="moveInDate">Einzugsdatum</label>
+                  <input
+                    id="moveInDate"
+                    name="moveInDate"
+                    type="date"
+                    value={tenantDetail.moveInDate ?? ""}
+                  />
+                </div>
+              </div>
+
+              <div class="row">
+                <button class="button button--primary" type="submit">
+                  Änderungen speichern
+                </button>
+                <a class="button button--secondary" href={`/app/mieter/${tenantDetail.id}`}>
+                  Abbrechen
+                </a>
+              </div>
+
+              <p id="tenant-update-status" class="form-status" aria-live="polite"></p>
+            </form>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#tenant-update-form");
+  const statusEl = document.querySelector("#tenant-update-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/tenants/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Mieter konnte nicht gespeichert werden.";
+        return;
+      }
+
+      statusEl.textContent = "Mieter erfolgreich aktualisiert.";
+      window.location.href = `/app/mieter/${payload.tenantId}`;
+    } catch {
+      statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

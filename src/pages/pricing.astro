@@ -1,0 +1,413 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { BILLING_MODULES, getMergedLimitsForModules } from "../lib/billing/modules";
+import { MODULE_KEYS } from "../lib/constants/module-keys";
+
+const combinations = [
+  {
+    title: "Gebäude + Vermietung",
+    description:
+      "Für Verwaltungen, die Haus- und Einheitenebene gemeinsam steuern wollen.",
+    modules: [MODULE_KEYS.HAUSVERWALTUNG, MODULE_KEYS.SONDEREIGENTUM],
+    priceMonthly: 49,
+    comparePrice: 58,
+  },
+  {
+    title: "Vermietung + Mietpool",
+    description:
+      "Für Modelle mit Mieterverwaltung und zusätzlicher Ausschüttungslogik.",
+    modules: [MODULE_KEYS.SONDEREIGENTUM, MODULE_KEYS.MIETPOOL],
+    priceMonthly: 59,
+    comparePrice: 68,
+  },
+  {
+    title: "Komplettlösung",
+    description:
+      "Für professionelle Verwaltungen mit Gebäude-, Wohnungs- und Poolverwaltung.",
+    modules: [
+      MODULE_KEYS.HAUSVERWALTUNG,
+      MODULE_KEYS.SONDEREIGENTUM,
+      MODULE_KEYS.MIETPOOL,
+    ],
+    priceMonthly: 79,
+    comparePrice: 87,
+  },
+];
+
+const comparisonRows = [
+  {
+    label: "Objektübersicht",
+    includedIn: [MODULE_KEYS.HAUSVERWALTUNG, MODULE_KEYS.SONDEREIGENTUM],
+  },
+  {
+    label: "Eigentümerverwaltung",
+    includedIn: [MODULE_KEYS.HAUSVERWALTUNG],
+  },
+  {
+    label: "Wartungen",
+    includedIn: [MODULE_KEYS.HAUSVERWALTUNG],
+  },
+  {
+    label: "Rücklagen",
+    includedIn: [MODULE_KEYS.HAUSVERWALTUNG, MODULE_KEYS.SONDEREIGENTUM],
+  },
+  {
+    label: "Gebäudemängel",
+    includedIn: [MODULE_KEYS.HAUSVERWALTUNG, MODULE_KEYS.SONDEREIGENTUM],
+  },
+  {
+    label: "Wohneinheiten",
+    includedIn: [MODULE_KEYS.SONDEREIGENTUM],
+  },
+  {
+    label: "Mieter",
+    includedIn: [MODULE_KEYS.SONDEREIGENTUM],
+  },
+  {
+    label: "Dokumente",
+    includedIn: [MODULE_KEYS.SONDEREIGENTUM],
+  },
+  {
+    label: "Kommunikation",
+    includedIn: [MODULE_KEYS.SONDEREIGENTUM],
+  },
+  {
+    label: "Mietpool-Dashboard",
+    includedIn: [MODULE_KEYS.MIETPOOL],
+  },
+  {
+    label: "Auszahlungen",
+    includedIn: [MODULE_KEYS.MIETPOOL],
+  },
+  {
+    label: "Poolrücklagen",
+    includedIn: [MODULE_KEYS.MIETPOOL],
+  },
+];
+
+const addons = [
+  "Zusätzliches Objekt",
+  "Zusätzliche Wohneinheiten",
+  "Zusätzliche Benutzer",
+  "Dokumentenspeicher",
+  "KI-Assistent",
+  "Export & Buchhaltung",
+];
+---
+
+<MarketingLayout
+  title="Preise | ImmobilienPro"
+  description="Modulare Preise für Hausverwaltung, Sondereigentum und Mietpool."
+>
+  <section class="section">
+    <div class="container">
+      <div class="pricing-hero">
+        <div class="section__header">
+          <span class="section__eyebrow">Pricing</span>
+          <h1>Modulare Preise für moderne Immobilienverwaltung</h1>
+          <p>
+            Buche nur die Module, die du wirklich brauchst. Alle Bereiche sind
+            unabhängig nutzbar und lassen sich später flexibel kombinieren.
+          </p>
+        </div>
+
+        <div class="pricing-hero__meta row">
+          <span class="badge badge--accent">Monatlich kündbar</span>
+          <span class="badge">Frei kombinierbar</span>
+          <span class="badge">Später erweiterbar</span>
+        </div>
+      </div>
+
+      <div class="grid-auto">
+        {
+          BILLING_MODULES.map((module) => (
+            <article class="card card--glass card--glow pricing-plan">
+              <div class="card__body stack">
+                <div class="row row--between pricing-plan__top">
+                  <div class="stack pricing-plan__title">
+                    <span class="badge badge--accent">{module.name}</span>
+                    <h2>{module.name}</h2>
+                  </div>
+
+                  {module.highlight && <span class="badge">{module.highlight}</span>}
+                </div>
+
+                <p>{module.shortDescription}</p>
+
+                <div class="pricing-plan__price">
+                  <span class="pricing-plan__amount">{module.priceMonthly} €</span>
+                  <span class="pricing-plan__suffix">/ Monat</span>
+                </div>
+
+                <div class="stack">
+                  {module.features.map((feature) => (
+                    <div class="pricing-plan__feature">• {feature}</div>
+                  ))}
+                </div>
+
+                <div class="stack pricing-plan__limits">
+                  {module.limits.maxObjects !== undefined && (
+                    <div class="pricing-plan__feature">
+                      Objekte:{" "}
+                      {module.limits.maxObjects === null
+                        ? "unbegrenzt"
+                        : module.limits.maxObjects}
+                    </div>
+                  )}
+
+                  {module.limits.maxOwners !== undefined && (
+                    <div class="pricing-plan__feature">
+                      Eigentümer:{" "}
+                      {module.limits.maxOwners === null
+                        ? "unbegrenzt"
+                        : module.limits.maxOwners}
+                    </div>
+                  )}
+
+                  {module.limits.maxUnits !== undefined && (
+                    <div class="pricing-plan__feature">
+                      Wohneinheiten:{" "}
+                      {module.limits.maxUnits === null
+                        ? "unbegrenzt"
+                        : module.limits.maxUnits}
+                    </div>
+                  )}
+
+                  {module.limits.maxTenants !== undefined && (
+                    <div class="pricing-plan__feature">
+                      Mieter:{" "}
+                      {module.limits.maxTenants === null
+                        ? "unbegrenzt"
+                        : module.limits.maxTenants}
+                    </div>
+                  )}
+                </div>
+
+                <a class="button button--primary" href="/auth/register">
+                  Modul wählen
+                </a>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section__header">
+        <span class="section__eyebrow">Kombinationen</span>
+        <h2>Beliebte Modul-Kombinationen</h2>
+        <p>
+          Manche Verwaltungen brauchen mehr als einen Bereich. Dafür sind
+          Kombinationen direkt mitgedacht.
+        </p>
+      </div>
+
+      <div class="grid-auto">
+        {
+          combinations.map((combo) => {
+            const limits = getMergedLimitsForModules(combo.modules);
+
+            return (
+              <article class="card card--glass card--glow pricing-plan">
+                <div class="card__body stack">
+                  <span class="badge">{combo.title}</span>
+                  <h3>{combo.title}</h3>
+                  <p>{combo.description}</p>
+
+                  <div class="pricing-combo__modules">
+                    {combo.modules.map((module) => (
+                      <span class="badge badge--accent">{module}</span>
+                    ))}
+                  </div>
+
+                  <div class="pricing-plan__price">
+                    <span class="pricing-plan__amount">{combo.priceMonthly} €</span>
+                    <span class="pricing-plan__suffix">/ Monat</span>
+                  </div>
+
+                  <p class="pricing-combo__save">
+                    Statt {combo.comparePrice} € bei Einzelbuchung
+                  </p>
+
+                  <div class="stack pricing-plan__limits">
+                    {limits.maxObjects !== undefined && (
+                      <div class="pricing-plan__feature">
+                        Objekte:{" "}
+                        {limits.maxObjects === null ? "unbegrenzt" : limits.maxObjects}
+                      </div>
+                    )}
+
+                    {limits.maxUnits !== undefined && (
+                      <div class="pricing-plan__feature">
+                        Wohneinheiten:{" "}
+                        {limits.maxUnits === null ? "unbegrenzt" : limits.maxUnits}
+                      </div>
+                    )}
+
+                    {limits.maxTenants !== undefined && (
+                      <div class="pricing-plan__feature">
+                        Mieter:{" "}
+                        {limits.maxTenants === null ? "unbegrenzt" : limits.maxTenants}
+                      </div>
+                    )}
+                  </div>
+
+                  <a class="button button--secondary" href="/auth/register">
+                    Kombination wählen
+                  </a>
+                </div>
+              </article>
+            );
+          })
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section__header">
+        <span class="section__eyebrow">Vergleich</span>
+        <h2>Welche Funktionen in welchem Modul enthalten sind</h2>
+      </div>
+
+      <div class="panel">
+        <div class="panel__body pricing-table-wrap">
+          <table class="pricing-table">
+            <thead>
+              <tr>
+                <th>Funktion</th>
+                <th>Hausverwaltung</th>
+                <th>Sondereigentum</th>
+                <th>Mietpool</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                comparisonRows.map((row) => (
+                  <tr>
+                    <td>{row.label}</td>
+                    <td>
+                      {row.includedIn.includes(MODULE_KEYS.HAUSVERWALTUNG) ? "✓" : "—"}
+                    </td>
+                    <td>
+                      {row.includedIn.includes(MODULE_KEYS.SONDEREIGENTUM) ? "✓" : "—"}
+                    </td>
+                    <td>{row.includedIn.includes(MODULE_KEYS.MIETPOOL) ? "✓" : "—"}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section__header">
+        <span class="section__eyebrow">Add-ons</span>
+        <h2>Erweitere dein Setup bei Bedarf</h2>
+        <p>
+          Du musst nicht sofort alles buchen. Zusätzliche Funktionen können
+          später ergänzt werden.
+        </p>
+      </div>
+
+      <div class="grid-auto">
+        {
+          addons.map((addon) => (
+            <article class="card card--glass card--glow">
+              <div class="card__body stack">
+                <span class="badge">{addon}</span>
+                <h3>{addon}</h3>
+                <p>
+                  Später zubuchbar, wenn deine Verwaltung wächst oder du weitere
+                  Anforderungen abdecken willst.
+                </p>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</MarketingLayout>
+
+<style>
+  .pricing-hero {
+    margin-bottom: var(--space-10);
+  }
+
+  .pricing-hero__meta {
+    flex-wrap: wrap;
+  }
+
+  .pricing-plan__top {
+    align-items: flex-start;
+  }
+
+  .pricing-plan__title {
+    gap: var(--space-2);
+  }
+
+  .pricing-plan__price {
+    display: flex;
+    align-items: end;
+    gap: var(--space-2);
+  }
+
+  .pricing-plan__amount {
+    font-size: clamp(2.25rem, 5vw, 3.25rem);
+    line-height: 1;
+    font-weight: var(--weight-bold);
+    color: var(--text);
+  }
+
+  .pricing-plan__suffix {
+    color: var(--text-muted);
+    padding-bottom: 0.4rem;
+  }
+
+  .pricing-plan__feature,
+  .pricing-combo__save {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .pricing-combo__modules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .pricing-table-wrap {
+    overflow-x: auto;
+  }
+
+  .pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+  }
+
+  .pricing-table th,
+  .pricing-table td {
+    padding: 0.95rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pricing-table th {
+    color: var(--text);
+    font-size: var(--text-sm);
+  }
+
+  .pricing-table td {
+    color: var(--text-muted);
+  }
+</style>

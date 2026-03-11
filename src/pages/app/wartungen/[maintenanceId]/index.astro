@@ -1,0 +1,90 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getMaintenanceDetailViewModel } from "../../../../lib/domain/maintenance/maintenance-detail-service";
+
+const activeModules = [MODULE_KEYS.HAUSVERWALTUNG];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+const { maintenanceId } = Astro.params;
+
+let maintenanceDetail = null;
+
+if (maintenanceId) {
+  try {
+    maintenanceDetail = await getMaintenanceDetailViewModel(
+      appContext.organizationId ?? "",
+      maintenanceId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden der Wartung:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Wartung | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  {
+    !maintenanceDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Wartung nicht gefunden</h1>
+          <p>Die angeforderte Wartung konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/wartungen">
+            Zurück zur Wartungsübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Wartung</span>
+          <h1>{maintenanceDetail.title}</h1>
+          <p>{maintenanceDetail.objectLabel}</p>
+        </div>
+
+        <section class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Status</div>
+            <div class="kpi-card__value">{maintenanceDetail.statusLabel}</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Termin</div>
+            <div class="kpi-card__value">{maintenanceDetail.scheduledDateLabel}</div>
+          </article>
+        </section>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <h3>Notiz</h3>
+            <p>{maintenanceDetail.noteLabel}</p>
+
+            <div class="row">
+              <a
+                class="button button--secondary"
+                href={`/app/wartungen/${maintenanceDetail.id}/bearbeiten`}
+              >
+                Bearbeiten
+              </a>
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>

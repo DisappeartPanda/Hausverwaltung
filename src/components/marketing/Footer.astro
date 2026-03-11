@@ -1,0 +1,47 @@
+<footer class="marketing-footer">
+  <div class="container marketing-footer__inner">
+    <div class="marketing-footer__brand">
+      <h3>ImmobilienPro</h3>
+      <p>
+        Modulare Plattform für Hausverwaltung, Sondereigentum und Mietpool.
+      </p>
+    </div>
+
+    <div class="marketing-footer__nav">
+      <a href="/">Start</a>
+      <a href="/pricing">Preise</a>
+      <a href="/kontakt">Kontakt</a>
+      <a href="/auth/login">Login</a>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .marketing-footer {
+    border-top: 1px solid var(--border);
+    margin-top: var(--space-16);
+    padding: var(--space-10) 0;
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .marketing-footer__inner {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-8);
+  }
+
+  .marketing-footer__brand {
+    max-width: 28rem;
+  }
+
+  .marketing-footer__nav {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  @media (max-width: 720px) {
+    .marketing-footer__inner {
+      flex-direction: column;
+    }
+  }
+</style>

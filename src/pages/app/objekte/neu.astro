@@ -1,0 +1,116 @@
+---
+import AppLayout from "../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../lib/constants/module-keys";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+---
+
+<AppLayout
+  title="Neues Objekt | ImmobilienPro"
+  organizationName="Musterverwaltung GmbH"
+  activeModules={activeModules}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Objekte</span>
+      <h1>Neues Objekt anlegen</h1>
+      <p>
+        Erfasse die wichtigsten Stammdaten für ein neues Gebäude oder Objekt.
+      </p>
+    </div>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <form class="stack" id="object-create-form">
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="name">Objektname</label>
+              <input id="name" name="name" placeholder="z. B. Musterstraße 12" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="city">Ort</label>
+              <input id="city" name="city" placeholder="z. B. Berlin" />
+            </div>
+          </div>
+
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="street">Straße</label>
+              <input id="street" name="street" placeholder="Straße und Hausnummer" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="postalCode">PLZ</label>
+              <input id="postalCode" name="postalCode" placeholder="10115" />
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label" for="unitCount">Anzahl Wohneinheiten</label>
+            <input id="unitCount" name="unitCount" type="number" min="0" placeholder="z. B. 8" />
+          </div>
+
+          <div class="row">
+            <button class="button button--primary" type="submit">
+              Objekt speichern
+            </button>
+            <a class="button button--secondary" href="/app/objekte">
+              Abbrechen
+            </a>
+          </div>
+
+          <p class="form-status" id="object-form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#object-create-form");
+  const statusEl = document.querySelector("#object-form-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/objects/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Objekt konnte nicht gespeichert werden.";
+        return;
+      }
+
+      statusEl.textContent = "Objekt erfolgreich angelegt.";
+      form.reset();
+    } catch {
+      statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

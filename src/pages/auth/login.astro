@@ -1,0 +1,103 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Login | ImmobilienPro"
+  description="Melde dich bei ImmobilienPro an."
+>
+  <main class="page-shell">
+    <div class="container--md">
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <div class="section__header">
+            <span class="section__eyebrow">Login</span>
+            <h1>Bei ImmobilienPro anmelden</h1>
+            <p>
+              Melde dich mit deinem Konto an, um auf Verwaltung oder Mieterportal
+              zuzugreifen.
+            </p>
+          </div>
+
+          <form id="login-form" class="stack">
+            <div class="input-group">
+              <label class="input-label" for="email">E-Mail</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="name@email.de"
+                required
+              />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="password">Passwort</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            <div class="row">
+              <button class="button button--primary" type="submit">
+                Anmelden
+              </button>
+              <a class="button button--secondary" href="/auth/register">
+                Registrieren
+              </a>
+            </div>
+
+            <p id="login-status" class="form-status" aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+</BaseLayout>
+
+<script>
+  const form = document.querySelector("#login-form");
+  const statusEl = document.querySelector("#login-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form || "Login fehlgeschlagen.";
+        return;
+      }
+
+      statusEl.textContent = "Login erfolgreich. Du wirst weitergeleitet.";
+      window.location.href = result.data.redirectTo || "/app/dashboard";
+    } catch {
+      statusEl.textContent = "Beim Login ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

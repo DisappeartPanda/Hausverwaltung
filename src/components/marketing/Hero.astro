@@ -1,0 +1,90 @@
+<section class="section hero">
+  <div class="container hero__inner">
+
+    <div class="hero__content stack">
+      <span class="section__eyebrow">ImmobilienPro</span>
+
+      <h1>
+        Moderne Verwaltung für
+        <span class="hero__highlight">
+          Immobilien, Einheiten und Mietpools
+        </span>
+      </h1>
+
+      <p>
+        ImmobilienPro ist eine modulare Plattform für Hausverwaltung,
+        Sondereigentumsverwaltung und Mietpool-Systeme.
+      </p>
+
+      <div class="hero__actions">
+        <a class="button button--primary" href="/pricing">
+          Module ansehen
+        </a>
+
+        <a class="button button--secondary" href="/auth/register">
+          Demo starten
+        </a>
+      </div>
+    </div>
+
+    <div class="hero__visual panel">
+      <div class="panel__body stack">
+
+        <div class="kpi-grid">
+
+          <div class="kpi-card">
+            <div class="kpi-card__label">Objekte</div>
+            <div class="kpi-card__value">4</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-card__label">Einheiten</div>
+            <div class="kpi-card__value">18</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-card__label">Mieter</div>
+            <div class="kpi-card__value">15</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-card__label">Rücklagen</div>
+            <div class="kpi-card__value">12.540 €</div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<style>
+.hero__inner{
+display:grid;
+grid-template-columns:1.1fr 1fr;
+gap:var(--space-12);
+align-items:center;
+}
+
+.hero__highlight{
+color:var(--accent);
+}
+
+.hero__actions{
+display:flex;
+gap:var(--space-4);
+flex-wrap:wrap;
+}
+
+.hero__visual{
+min-height:280px;
+}
+
+@media(max-width:900px){
+.hero__inner{
+grid-template-columns:1fr;
+}
+}
+</style>

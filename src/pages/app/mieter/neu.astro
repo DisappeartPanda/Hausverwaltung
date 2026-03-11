@@ -1,0 +1,120 @@
+---
+import AppLayout from "../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../lib/constants/module-keys";
+
+const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+---
+
+<AppLayout
+  title="Neuer Mieter | ImmobilienPro"
+  organizationName="Musterverwaltung GmbH"
+  activeModules={activeModules}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Mieter</span>
+      <h1>Neuen Mieter anlegen</h1>
+      <p>
+        Erfasse die wichtigsten Angaben für ein neues Mietverhältnis.
+      </p>
+    </div>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <form class="stack" id="tenant-create-form">
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="firstName">Vorname</label>
+              <input id="firstName" name="firstName" placeholder="Max" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="lastName">Nachname</label>
+              <input id="lastName" name="lastName" placeholder="Mustermann" />
+            </div>
+          </div>
+
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="email">E-Mail</label>
+              <input id="email" name="email" type="email" placeholder="max@example.com" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="phone">Telefon</label>
+              <input id="phone" name="phone" placeholder="+49..." />
+            </div>
+          </div>
+
+          <div class="grid-auto">
+            <div class="input-group">
+              <label class="input-label" for="unitId">Wohneinheit</label>
+              <input id="unitId" name="unitId" placeholder="z. B. WE 3.2" />
+            </div>
+
+            <div class="input-group">
+              <label class="input-label" for="moveInDate">Einzugsdatum</label>
+              <input id="moveInDate" name="moveInDate" type="date" />
+            </div>
+          </div>
+
+          <div class="row">
+            <button class="button button--primary" type="submit">
+              Mieter speichern
+            </button>
+            <a class="button button--secondary" href="/app/mieter">
+              Abbrechen
+            </a>
+          </div>
+
+          <p class="form-status" id="tenant-form-status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </div>
+</AppLayout>
+
+<script>
+  const form = document.querySelector("#tenant-create-form");
+  const statusEl = document.querySelector("#tenant-form-status");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch("/api/tenants/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        statusEl.textContent =
+          result?.errors?.form ||
+          Object.values(result?.errors || {})[0] ||
+          "Mieter konnte nicht gespeichert werden.";
+        return;
+      }
+
+      statusEl.textContent = "Mieter erfolgreich angelegt.";
+      form.reset();
+    } catch {
+      statusEl.textContent = "Beim Speichern ist ein Fehler aufgetreten.";
+    }
+  });
+</script>
+
+<style>
+  .form-status {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+</style>

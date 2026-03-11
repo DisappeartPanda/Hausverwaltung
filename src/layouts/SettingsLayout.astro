@@ -1,0 +1,74 @@
+---
+import AppLayout from "./AppLayout.astro";
+import SettingsNav from "../components/shared/SettingsNav.astro";
+import type { ModuleKey } from "../lib/constants/module-keys";
+
+interface Props {
+  title?: string;
+  description?: string;
+  theme?: "dark-green" | "dark-blue" | "light";
+  organizationName?: string;
+  activeModules?: ModuleKey[];
+  currentPath?: string;
+}
+
+const {
+  title = "Einstellungen | ImmobilienPro",
+  description = "Verwalte Konto, Organisation, Design und Abrechnung.",
+  theme = "dark-green",
+  organizationName = "Musterverwaltung GmbH",
+  activeModules = [],
+  currentPath = Astro.url.pathname,
+} = Astro.props;
+---
+
+<AppLayout
+  title={title}
+  description={description}
+  theme={theme}
+  organizationName={organizationName}
+  activeModules={activeModules}
+  currentPath={currentPath}
+>
+  <div class="settings-layout">
+    <aside class="settings-layout__sidebar">
+      <div class="panel">
+        <div class="panel__body">
+          <SettingsNav currentPath={currentPath} />
+        </div>
+      </div>
+    </aside>
+
+    <div class="settings-layout__content">
+      <slot />
+    </div>
+  </div>
+</AppLayout>
+
+<style>
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 18rem 1fr;
+    gap: var(--space-8);
+    align-items: start;
+  }
+
+  .settings-layout__sidebar {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-4));
+  }
+
+  .settings-layout__content {
+    min-width: 0;
+  }
+
+  @media (max-width: 1080px) {
+    .settings-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .settings-layout__sidebar {
+      position: static;
+    }
+  }
+</style>

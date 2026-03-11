@@ -1,0 +1,72 @@
+---
+import TenantLayout from "../../layouts/TenantLayout.astro";
+
+const messages = [
+  {
+    from: "Hausverwaltung",
+    subject: "Termin zur Heizungsprüfung",
+    date: "08.03.2026",
+    text: "Am Donnerstag zwischen 09:00 und 11:00 Uhr findet die Wartung der Heizungsanlage statt.",
+  },
+  {
+    from: "ImmobilienPro Support",
+    subject: "Neue Dokumente verfügbar",
+    date: "04.03.2026",
+    text: "Für dein Mietverhältnis wurden neue Unterlagen im Portal bereitgestellt.",
+  },
+];
+---
+
+<TenantLayout
+  title="Nachrichten | Mieterportal"
+  tenantName="Max Mustermann"
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Nachrichten</span>
+      <h1>Deine Kommunikation im Überblick</h1>
+      <p>
+        Hier findest du Mitteilungen deiner Verwaltung und wichtige Hinweise zu
+        deinem Mietverhältnis.
+      </p>
+    </div>
+
+    <section class="card card--glass">
+      <div class="card__body stack">
+        <h3>Neue Nachricht schreiben</h3>
+
+        <div class="input-group">
+          <label class="input-label">Betreff</label>
+          <input placeholder="z. B. Frage zur Nebenkostenabrechnung" />
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Nachricht</label>
+          <textarea placeholder="Schreibe hier deine Nachricht an die Verwaltung"></textarea>
+        </div>
+
+        <button class="button button--primary" type="button">
+          Nachricht senden
+        </button>
+      </div>
+    </section>
+
+    <div class="stack">
+      {
+        messages.map((message) => (
+          <article class="card card--glass card--glow">
+            <div class="card__body stack">
+              <div class="row row--between">
+                <span class="badge badge--accent">{message.from}</span>
+                <span class="badge">{message.date}</span>
+              </div>
+
+              <h3>{message.subject}</h3>
+              <p>{message.text}</p>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+</TenantLayout>

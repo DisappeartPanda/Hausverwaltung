@@ -1,0 +1,52 @@
+---
+const modules = [
+{
+title:"Hausverwaltung",
+desc:"Gebäude, Eigentümer, Wartungen und Rücklagen zentral verwalten.",
+},
+{
+title:"Sondereigentum",
+desc:"Wohneinheiten, Mieter, Dokumente und Kommunikation übersichtlich bündeln.",
+},
+{
+title:"Mietpool",
+desc:"Ausschüttungen, Poolrücklagen und Einnahmen transparent darstellen.",
+},
+];
+---
+
+<section class="section">
+<div class="container">
+
+<div class="section__header">
+<span class="section__eyebrow">Module</span>
+<h2>Verwalte Immobilien genau so, wie du es brauchst</h2>
+<p>
+ImmobilienPro besteht aus drei unabhängigen Modulen, die du frei kombinieren kannst.
+</p>
+</div>
+
+<div class="grid-auto">
+
+{modules.map((m)=>(
+<article class="card card--glass card--glow">
+<div class="card__body stack">
+
+<span class="badge badge--accent">{m.title}</span>
+
+<h3>{m.title}</h3>
+
+<p>{m.desc}</p>
+
+<a class="button button--secondary" href="/pricing">
+Mehr erfahren
+</a>
+
+</div>
+</article>
+))}
+
+</div>
+
+</div>
+</section>

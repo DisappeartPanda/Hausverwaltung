@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { requireLandlordSession } from '../supabase/serverAuth';
+import { requireLandlordSession } from '../supabase1/serverAuth';
 
 const toError = (e: unknown) =>
   e instanceof Error ? e : new Error(typeof e === 'string' ? e : JSON.stringify(e));

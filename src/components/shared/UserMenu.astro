@@ -1,0 +1,90 @@
+---
+import TenantLayout from "../../layouts/TenantLayout.astro";
+import { requireTenantSession } from "../../lib/auth/guards";
+
+const session = await requireTenantSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+---
+
+<TenantLayout
+  title="Mieterportal | ImmobilienPro"
+  tenantName={session.email ?? "Mieter"}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Mieterportal</span>
+      <h1>Alles Wichtige zu deiner Wohnung an einem Ort</h1>
+      <p>
+        Dokumente, Mängelmeldungen, Nachrichten und Vertragsinformationen
+        jederzeit griffbereit.
+      </p>
+    </div>
+
+    <section class="kpi-grid">
+      <article class="kpi-card">
+        <div class="kpi-card__label">Wohnung</div>
+        <div class="kpi-card__value">WE 3.2</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-card__label">Offene Mängel</div>
+        <div class="kpi-card__value">1</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-card__label">Neue Dokumente</div>
+        <div class="kpi-card__value">2</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-card__label">Nachrichten</div>
+        <div class="kpi-card__value">3</div>
+      </article>
+    </section>
+
+    <section class="grid-auto">
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <span class="badge badge--accent">Dokumente</span>
+          <h3>Wichtige Unterlagen</h3>
+          <p>
+            Mietvertrag, Abrechnungen und weitere Dokumente stehen dir zentral
+            zur Verfügung.
+          </p>
+          <a class="button button--secondary" href="/tenant/dokumente">
+            Dokumente öffnen
+          </a>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <span class="badge badge--accent">Mängel</span>
+          <h3>Mängel einfach melden</h3>
+          <p>
+            Reiche Schäden oder Probleme direkt über das Portal ein.
+          </p>
+          <a class="button button--secondary" href="/tenant/maengel">
+            Mängel ansehen
+          </a>
+        </div>
+      </article>
+
+      <article class="card card--glass card--glow">
+        <div class="card__body stack">
+          <span class="badge badge--accent">Nachrichten</span>
+          <h3>Direkter Kontakt</h3>
+          <p>
+            Erhalte Rückmeldungen und bleibe mit deiner Verwaltung in Kontakt.
+          </p>
+          <a class="button button--secondary" href="/tenant/nachrichten">
+            Nachrichten öffnen
+          </a>
+        </div>
+      </article>
+    </section>
+  </div>
+</TenantLayout>

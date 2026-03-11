@@ -1,0 +1,41 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+  limitLabel?: string;
+  currentUsage?: string;
+  upgradeHref?: string;
+}
+
+const {
+  title = "Limit erreicht",
+  description = "Du hast das in deinem aktuellen Modul enthaltene Limit erreicht.",
+  limitLabel = "Objektlimit",
+  currentUsage = "1 von 1 genutzt",
+  upgradeHref = "/settings/abrechnung",
+} = Astro.props;
+---
+
+<section class="card card--glass">
+  <div class="card__body stack">
+    <span class="badge">Limit erreicht</span>
+    <h3>{title}</h3>
+    <p>{description}</p>
+
+    <div class="panel">
+      <div class="panel__body stack">
+        <div class="kpi-card__label">{limitLabel}</div>
+        <div class="kpi-card__value">{currentUsage}</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <a class="button button--primary" href={upgradeHref}>
+        Limit erweitern
+      </a>
+      <a class="button button--secondary" href="/pricing">
+        Optionen ansehen
+      </a>
+    </div>
+  </div>
+</section>

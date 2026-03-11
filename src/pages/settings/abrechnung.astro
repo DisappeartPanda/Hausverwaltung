@@ -1,0 +1,57 @@
+---
+import SettingsLayout from "../../layouts/SettingsLayout.astro";
+import BillingSettingsCard from "../../components/settings/BillingSettingsCard.astro";
+import { MODULE_KEYS } from "../../lib/constants/module-keys";
+import { getAppSession } from "../../lib/auth/session";
+import { getAppContext } from "../../lib/utils/app-context";
+import { getMergedLimitsForModules } from "../../lib/billing/modules";
+import { getAllUsageStatuses } from "../../lib/access/usage-access";
+import { listObjectsByOrganization } from "../../lib/domain/objects/object-repository";
+import { listUnitsByOrganization } from "../../lib/domain/units/unit-repository";
+import { listTenantsByOrganization } from "../../lib/domain/tenants/tenant-repository";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+
+const session = await getAppSession(Astro);
+const appContext = await getAppContext(session);
+
+const [objects, units, tenants] = await Promise.all([
+  listObjectsByOrganization(appContext.organizationId),
+  listUnitsByOrganization(appContext.organizationId),
+  listTenantsByOrganization(appContext.organizationId),
+]);
+
+const mergedLimits = getMergedLimitsForModules(activeModules);
+
+const usageStatuses = getAllUsageStatuses(mergedLimits, {
+  maxObjects: objects.length,
+  maxUnits: units.length,
+  maxTenants: tenants.length,
+});
+---
+
+<SettingsLayout
+  title="Abrechnung | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Abrechnung</span>
+      <h1>Abo, Module und Nutzung</h1>
+      <p>
+        Hier siehst du dein aktives Setup, kombinierte Limits und die Grundlage
+        für spätere Upgrades oder Add-ons.
+      </p>
+    </div>
+
+    <BillingSettingsCard
+      activeModules={activeModules}
+      usageStatuses={usageStatuses}
+    />
+  </div>
+</SettingsLayout>

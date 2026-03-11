@@ -1,0 +1,97 @@
+---
+import AppLayout from "../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../lib/constants/module-keys";
+import { getAppContext } from "../../../lib/utils/app-context";
+import { getDefectListViewModel } from "../../../lib/domain/defects/defect-service";
+import { requireLandlordSession } from "../../../lib/auth/guards";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+
+let defects = [];
+
+try {
+  defects = await getDefectListViewModel(appContext.organizationId);
+} catch (error) {
+  console.error("Fehler beim Laden der Mängel:", error);
+}
+---
+
+<AppLayout
+  title="Mängel | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  <div class="stack">
+    <div class="row row--between">
+      <div class="section__header">
+        <span class="section__eyebrow">Mängel</span>
+        <h1>Mängel zentral erfassen und verfolgen</h1>
+        <p>
+          Gebäude- und wohnungsbezogene Mängel in einer gemeinsamen Übersicht.
+        </p>
+      </div>
+
+      <a class="button button--primary" href="/app/maengel/neu">
+        Mangel anlegen
+      </a>
+    </div>
+
+    {
+      defects.length === 0 ? (
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <span class="badge">Noch keine Mängel</span>
+            <h3>Erfasse den ersten Mangel</h3>
+            <p>
+              Neue Schäden oder Störungen erscheinen hier direkt nach dem Speichern.
+            </p>
+            <a class="button button--primary" href="/app/maengel/neu">
+              Ersten Mangel anlegen
+            </a>
+          </div>
+        </section>
+      ) : (
+        <div class="grid-auto">
+          {
+            defects.map((defect) => (
+              <article class="card card--glass card--glow">
+                <div class="card__body stack">
+                  <div class="row row--between">
+                    <span class="badge badge--accent">{defect.statusLabel}</span>
+                    <span class="badge">{defect.levelLabel}</span>
+                  </div>
+
+                  <h3>{defect.title}</h3>
+                  <p>{defect.locationLabel}</p>
+                  <p>{defect.descriptionLabel}</p>
+
+                  <div class="row">
+                    <a class="button button--secondary" href={`/app/maengel/${defect.id}`}>
+                      Details
+                    </a>
+                    <a class="button button--ghost" href={`/app/maengel/${defect.id}/bearbeiten`}>
+                      Bearbeiten
+                    </a>
+                  </div>
+                </div>
+              </article>
+            ))
+          }
+        </div>
+      )
+    }
+  </div>
+</AppLayout>

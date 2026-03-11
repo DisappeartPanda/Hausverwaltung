@@ -1,0 +1,92 @@
+---
+import AppLayout from "../../../../layouts/AppLayout.astro";
+import { MODULE_KEYS } from "../../../../lib/constants/module-keys";
+import { getAppContext } from "../../../../lib/utils/app-context";
+import { requireLandlordSession } from "../../../../lib/auth/guards";
+import { getTenantDetailViewModel } from "../../../../lib/domain/tenants/tenant-detail-service";
+
+const activeModules = [MODULE_KEYS.SONDEREIGENTUM];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+const { tenantId } = Astro.params;
+
+let tenantDetail = null;
+
+if (tenantId) {
+  try {
+    tenantDetail = await getTenantDetailViewModel(
+      appContext.organizationId ?? "",
+      tenantId,
+    );
+  } catch (error) {
+    console.error("Fehler beim Laden des Mieters:", error);
+  }
+}
+---
+
+<AppLayout
+  title="Mieter | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+  userEmail={session.email}
+>
+  {
+    !tenantDetail ? (
+      <section class="card card--glass">
+        <div class="card__body stack">
+          <span class="badge">Nicht gefunden</span>
+          <h1>Mieter nicht gefunden</h1>
+          <p>Der angeforderte Mieter konnte nicht geladen werden.</p>
+          <a class="button button--primary" href="/app/mieter">
+            Zurück zur Mieterübersicht
+          </a>
+        </div>
+      </section>
+    ) : (
+      <div class="stack">
+        <div class="section__header">
+          <span class="section__eyebrow">Mieter</span>
+          <h1>{tenantDetail.fullName}</h1>
+          <p>{tenantDetail.email}</p>
+        </div>
+
+        <section class="kpi-grid">
+          <article class="kpi-card">
+            <div class="kpi-card__label">Status</div>
+            <div class="kpi-card__value">{tenantDetail.statusLabel}</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Wohneinheit</div>
+            <div class="kpi-card__value">{tenantDetail.unitLabel}</div>
+          </article>
+
+          <article class="kpi-card">
+            <div class="kpi-card__label">Einzug</div>
+            <div class="kpi-card__value">{tenantDetail.moveInDateLabel}</div>
+          </article>
+        </section>
+
+        <section class="card card--glass">
+          <div class="card__body stack">
+            <h3>Kontakt</h3>
+            <p>{tenantDetail.phoneLabel}</p>
+
+            <div class="row">
+              <a class="button button--secondary" href={`/app/mieter/${tenantDetail.id}/bearbeiten`}>
+                Bearbeiten
+              </a>
+            </div>
+          </div>
+        </section>
+      </div>
+    )
+  }
+</AppLayout>

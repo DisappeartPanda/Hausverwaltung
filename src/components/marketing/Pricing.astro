@@ -1,0 +1,225 @@
+---
+import {
+  BILLING_MODULES,
+  getMergedLimitsForModules,
+} from "../../lib/billing/modules";
+import { MODULE_KEYS } from "../../lib/constants/module-keys";
+
+const comboGebaeudeVermietung = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+] as const;
+
+const comboVermietungPool = [
+  MODULE_KEYS.SONDEREIGENTUM,
+  MODULE_KEYS.MIETPOOL,
+] as const;
+
+const comboAlles = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+  MODULE_KEYS.MIETPOOL,
+] as const;
+
+const combinations = [
+  {
+    title: "Gebäude + Vermietung",
+    modules: comboGebaeudeVermietung,
+    priceMonthly: 49,
+    comparePrice: 58,
+  },
+  {
+    title: "Vermietung + Mietpool",
+    modules: comboVermietungPool,
+    priceMonthly: 59,
+    comparePrice: 68,
+  },
+  {
+    title: "Komplettlösung",
+    modules: comboAlles,
+    priceMonthly: 79,
+    comparePrice: 87,
+  },
+];
+---
+
+<section class="section">
+  <div class="container">
+    <div class="section__header">
+      <span class="section__eyebrow">Preise & Module</span>
+      <h2>Wähle genau die Module, die du wirklich brauchst.</h2>
+      <p>
+        ImmobilienPro ist modular aufgebaut. Du buchst nur die Bereiche, die zu
+        deiner Verwaltung passen, und kannst später jederzeit erweitern.
+      </p>
+    </div>
+
+    <div class="grid-auto">
+      {
+        BILLING_MODULES.map((module) => (
+          <article class="card card--glass card--glow pricing-card">
+            <div class="card__body stack">
+              <div class="row row--between pricing-card__head">
+                <div class="stack pricing-card__head-text">
+                  <span class="badge badge--accent">{module.name}</span>
+                  <h3>{module.name}</h3>
+                </div>
+
+                {module.highlight && <span class="badge">{module.highlight}</span>}
+              </div>
+
+              <p>{module.shortDescription}</p>
+
+              <div class="pricing-card__price">
+                <span class="pricing-card__price-value">
+                  {module.priceMonthly} €
+                </span>
+                <span class="pricing-card__price-label">/ Monat</span>
+              </div>
+
+              <div class="stack pricing-card__features">
+                {module.features.slice(0, 5).map((feature) => (
+                  <div class="pricing-card__feature">• {feature}</div>
+                ))}
+              </div>
+
+              <a class="button button--primary" href="/pricing">
+                Modul ansehen
+              </a>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+
+    <div class="pricing-combos">
+      <div class="section__header">
+        <span class="section__eyebrow">Kombinationen</span>
+        <h3>Module lassen sich frei kombinieren.</h3>
+        <p>
+          Für viele Kunden lohnt sich die Kombination aus Gebäude-, Vermietungs-
+          und Poolverwaltung.
+        </p>
+      </div>
+
+      <div class="grid-auto">
+        {
+          combinations.map((combo) => {
+            const mergedLimits = getMergedLimitsForModules([...combo.modules]);
+
+            return (
+              <article class="card card--glass card--glow pricing-card">
+                <div class="card__body stack">
+                  <div class="stack">
+                    <span class="badge">{combo.title}</span>
+                    <h3>{combo.title}</h3>
+                  </div>
+
+                  <div class="pricing-combo__modules">
+                    {combo.modules.map((module) => (
+                      <span class="badge badge--accent">{module}</span>
+                    ))}
+                  </div>
+
+                  <div class="pricing-card__price">
+                    <span class="pricing-card__price-value">
+                      {combo.priceMonthly} €
+                    </span>
+                    <span class="pricing-card__price-label">/ Monat</span>
+                  </div>
+
+                  <p>
+                    Statt {combo.comparePrice} € bei Einzelbuchung. Ideal für
+                    kombinierte Verwaltungsmodelle.
+                  </p>
+
+                  <div class="stack pricing-card__limits">
+                    {mergedLimits.maxObjects !== undefined && (
+                      <div class="pricing-card__feature">
+                        Objekte:{" "}
+                        {mergedLimits.maxObjects === null
+                          ? "unbegrenzt"
+                          : mergedLimits.maxObjects}
+                      </div>
+                    )}
+
+                    {mergedLimits.maxUnits !== undefined && (
+                      <div class="pricing-card__feature">
+                        Wohneinheiten:{" "}
+                        {mergedLimits.maxUnits === null
+                          ? "unbegrenzt"
+                          : mergedLimits.maxUnits}
+                      </div>
+                    )}
+
+                    {mergedLimits.maxTenants !== undefined && (
+                      <div class="pricing-card__feature">
+                        Mieter:{" "}
+                        {mergedLimits.maxTenants === null
+                          ? "unbegrenzt"
+                          : mergedLimits.maxTenants}
+                      </div>
+                    )}
+                  </div>
+
+                  <a class="button button--secondary" href="/pricing">
+                    Kombination ansehen
+                  </a>
+                </div>
+              </article>
+            );
+          })
+        }
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .pricing-card__head {
+    align-items: flex-start;
+  }
+
+  .pricing-card__head-text {
+    gap: var(--space-2);
+  }
+
+  .pricing-card__price {
+    display: flex;
+    align-items: end;
+    gap: var(--space-2);
+  }
+
+  .pricing-card__price-value {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1;
+    font-weight: var(--weight-bold);
+    color: var(--text);
+  }
+
+  .pricing-card__price-label {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    padding-bottom: 0.3rem;
+  }
+
+  .pricing-card__features,
+  .pricing-card__limits {
+    gap: var(--space-2);
+  }
+
+  .pricing-card__feature {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .pricing-combo__modules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .pricing-combos {
+    margin-top: var(--space-16);
+  }
+</style>

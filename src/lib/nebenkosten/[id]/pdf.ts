@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { supabase } from '../../supabase/supabase';
+import { supabase } from '../../supabase1/supabase';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 

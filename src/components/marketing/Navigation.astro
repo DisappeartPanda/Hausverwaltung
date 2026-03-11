@@ -1,0 +1,59 @@
+<header class="marketing-nav">
+  <div class="container marketing-nav__inner">
+    <a class="marketing-nav__brand" href="/">ImmobilienPro</a>
+
+    <nav class="marketing-nav__links" aria-label="Hauptnavigation">
+      <a href="/">Start</a>
+      <a href="/pricing">Preise</a>
+      <a href="/kontakt">Kontakt</a>
+    </nav>
+
+    <div class="marketing-nav__actions">
+      <a class="button button--ghost" href="/auth/login">Login</a>
+      <a class="button button--primary" href="/pricing">Module ansehen</a>
+    </div>
+  </div>
+</header>
+
+<style>
+  .marketing-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    border-bottom: 1px solid var(--border);
+    background: rgba(11, 18, 32, 0.72);
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
+  }
+
+  .marketing-nav__inner {
+    min-height: 4.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .marketing-nav__brand {
+    font-weight: var(--weight-bold);
+    font-size: var(--text-lg);
+  }
+
+  .marketing-nav__links {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+  }
+
+  .marketing-nav__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  @media (max-width: 820px) {
+    .marketing-nav__links {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,40 @@
+---
+import SettingsLayout from "../../layouts/SettingsLayout.astro";
+import ThemeSettingsCard from "../../components/settings/ThemeSettingsCard.astro";
+import { MODULE_KEYS } from "../../lib/constants/module-keys";
+import { getAppContext } from "../../lib/utils/app-context";
+import { requireLandlordSession } from "../../lib/auth/guards";
+
+const activeModules = [
+  MODULE_KEYS.HAUSVERWALTUNG,
+  MODULE_KEYS.SONDEREIGENTUM,
+];
+
+const session = await requireLandlordSession(Astro);
+
+if (session instanceof Response) {
+  return session;
+}
+
+const appContext = await getAppContext(session);
+---
+
+<SettingsLayout
+  title="Design | ImmobilienPro"
+  organizationName={appContext.organizationName}
+  activeModules={activeModules}
+  theme={appContext.theme}
+>
+  <div class="stack">
+    <div class="section__header">
+      <span class="section__eyebrow">Design</span>
+      <h1>Design & Themes</h1>
+      <p>
+        Lege fest, wie deine Oberfläche aussehen soll. Das Theme kann später pro
+        Organisation oder Benutzer gespeichert werden.
+      </p>
+    </div>
+
+    <ThemeSettingsCard />
+  </div>
+</SettingsLayout>
