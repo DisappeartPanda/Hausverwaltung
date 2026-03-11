@@ -1,43 +1,38 @@
 import { defineMiddleware } from "astro:middleware";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+import { createServerSupabaseClient } from "./lib/supabase/server";
+import { ROUTES } from "./lib/constants/routes";
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(key: string) {
-        return context.cookies.get(key)?.value;
-      },
-      set(key: string, value: string, options: CookieOptions) {
-        context.cookies.set(key, value, options);
-      },
-      remove(key: string, options: CookieOptions) {
-        context.cookies.delete(key, options);
-      },
-    },
-  });
+  const supabase = createServerSupabaseClient(context.cookies);
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = context.url.pathname;
-  const isAppRoute = pathname.startsWith("/app");
-  const isTenantRoute = pathname.startsWith("/tenant");
-  const isAuthRoute = pathname === "/login" || pathname === "/register";
+  context.locals.supabase = supabase;
+  context.locals.session = session;
+  context.locals.user = user;
 
-  if ((isAppRoute || isTenantRoute) && !user) {
-    return context.redirect("/login");
+  const pathname = context.url.pathname;
+
+  const isAppRoute = pathname.startsWith(ROUTES.APP_ROOT);
+  const isAuthRoute =
+    pathname === ROUTES.AUTH_LOGIN ||
+    pathname === ROUTES.AUTH_REGISTER ||
+    pathname === ROUTES.AUTH_FORGOT_PASSWORD ||
+    pathname === ROUTES.AUTH_RESET_PASSWORD;
+
+  if (isAppRoute && !user) {
+    return context.redirect(ROUTES.AUTH_LOGIN);
   }
 
   if (isAuthRoute && user) {
-    return context.redirect("/app");
+    return context.redirect(ROUTES.APP_DASHBOARD);
   }
-
-  context.locals.supabase = supabase;
-  context.locals.user = user;
 
   return next();
 });
