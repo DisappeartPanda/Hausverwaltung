@@ -5,30 +5,30 @@ type MaintenanceInsert = Database["public"]["Tables"]["maintenance"]["Insert"];
 type MaintenanceRow = Database["public"]["Tables"]["maintenance"]["Row"];
 
 export async function createMaintenance(
-  input: MaintenanceInsert,
+  input: MaintenanceInsert
 ): Promise<MaintenanceRow> {
   const supabase = createServerSupabaseClient();
+  const maintenanceTable = supabase.from("maintenance") as any;
 
-  const { data, error } = await supabase
-    .from("maintenance")
+  const { data, error } = await maintenanceTable
     .insert(input)
-    .select()
+    .select("*")
     .single();
 
   if (error || !data) {
     throw new Error(error?.message || "Wartung konnte nicht erstellt werden.");
   }
 
-  return data;
+  return data as MaintenanceRow;
 }
 
 export async function listMaintenanceByOrganization(
-  organizationId: string,
+  organizationId: string
 ): Promise<MaintenanceRow[]> {
   const supabase = createServerSupabaseClient();
+  const maintenanceTable = supabase.from("maintenance") as any;
 
-  const { data, error } = await supabase
-    .from("maintenance")
+  const { data, error } = await maintenanceTable
     .select("*")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false });
@@ -37,5 +37,25 @@ export async function listMaintenanceByOrganization(
     throw new Error(error.message || "Wartungen konnten nicht geladen werden.");
   }
 
-  return data ?? [];
+  return (data ?? []) as MaintenanceRow[];
+}
+
+export async function getMaintenanceById(
+  maintenanceId: string,
+  organizationId: string
+): Promise<MaintenanceRow | null> {
+  const supabase = createServerSupabaseClient();
+  const maintenanceTable = supabase.from("maintenance") as any;
+
+  const { data, error } = await maintenanceTable
+    .select("*")
+    .eq("id", maintenanceId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Wartung konnte nicht geladen werden.");
+  }
+
+  return (data as MaintenanceRow | null) ?? null;
 }

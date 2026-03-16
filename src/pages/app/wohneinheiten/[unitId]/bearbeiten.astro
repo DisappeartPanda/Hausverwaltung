@@ -2,15 +2,16 @@
 import AppLayout from "../../../../layouts/AppLayout.astro";
 import { getAppSession } from "../../../../lib/auth/session";
 import { getAppContext } from "../../../../lib/utils/app-context";
-import { getObjectListViewModel } from "../../../../lib/domain/objects/object-list-service";
+import { getObjectListViewModel, type ObjectListItem } from "../../../../lib/domain/objects/object-list-service";
 import { getUnitDetailViewModel } from "../../../../lib/domain/units/unit-detail-service";
 
-const session = await getAppSession(Astro);
+const sessionResult = await getAppSession(Astro);
 
-if (session instanceof Response) {
-  return session;
+if (sessionResult instanceof Response) {
+  return sessionResult;
 }
 
+const session = sessionResult;
 const appContext = await getAppContext(session);
 
 if (!appContext.organizationId) {
@@ -23,10 +24,6 @@ if (!unitId) {
   throw new Error("Keine unitId in der Route gefunden.");
 }
 
-type ObjectListItem = Awaited<
-  ReturnType<typeof getObjectListViewModel>
->[number];
-
 let objects: ObjectListItem[] = [];
 
 try {
@@ -36,6 +33,10 @@ try {
 }
 
 const unit = await getUnitDetailViewModel(unitId, appContext.organizationId);
+
+if (!unit) {
+  throw new Error("Wohneinheit nicht gefunden.");
+}
 ---
 
 <AppLayout
@@ -86,13 +87,13 @@ const unit = await getUnitDetailViewModel(unitId, appContext.organizationId);
           <div class="input-group">
             <label for="status" class="input-label">Status</label>
             <select id="status" name="status">
-              <option value="vacant" selected={unit.status === "vacant"}>
+              <option value="frei" selected={unit.status === "frei"}>
                 Leerstand
               </option>
-              <option value="occupied" selected={unit.status === "occupied"}>
+              <option value="vermietet" selected={unit.status === "vermietet"}>
                 Vermietet
               </option>
-              <option value="reserved" selected={unit.status === "reserved"}>
+              <option value="reserviert" selected={unit.status === "reserviert"}>
                 Reserviert
               </option>
             </select>

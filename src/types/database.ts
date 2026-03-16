@@ -13,16 +13,25 @@ export type Database = {
         Row: {
           id: string;
           name: string;
+          slug: string;
+          billing_email: string | null;
+          theme: "dark-green" | "dark-blue" | "light";
           created_at: string | null;
         };
         Insert: {
           id?: string;
           name: string;
+          slug: string;
+          billing_email?: string | null;
+          theme?: "dark-green" | "dark-blue" | "light";
           created_at?: string | null;
         };
         Update: {
           id?: string;
           name?: string;
+          slug?: string;
+          billing_email?: string | null;
+          theme?: "dark-green" | "dark-blue" | "light";
           created_at?: string | null;
         };
       };
@@ -31,16 +40,25 @@ export type Database = {
         Row: {
           id: string;
           email: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          default_role: "guest" | "tenant" | "landlord";
           created_at: string | null;
         };
         Insert: {
           id: string;
           email?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          default_role?: "guest" | "tenant" | "landlord";
           created_at?: string | null;
         };
         Update: {
           id?: string;
           email?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          default_role?: "guest" | "tenant" | "landlord";
           created_at?: string | null;
         };
       };
@@ -48,23 +66,26 @@ export type Database = {
       organization_members: {
         Row: {
           id: string;
-          organization_id: string | null;
-          user_id: string | null;
-          role: string;
+          organization_id: string;
+          user_id: string;
+          role: "tenant" | "landlord";
+          is_default: boolean;
           created_at: string | null;
         };
         Insert: {
           id?: string;
-          organization_id?: string | null;
-          user_id?: string | null;
-          role?: string;
+          organization_id: string;
+          user_id: string;
+          role: "tenant" | "landlord";
+          is_default?: boolean;
           created_at?: string | null;
         };
         Update: {
           id?: string;
-          organization_id?: string | null;
-          user_id?: string | null;
-          role?: string;
+          organization_id?: string;
+          user_id?: string;
+          role?: "tenant" | "landlord";
+          is_default?: boolean;
           created_at?: string | null;
         };
       };

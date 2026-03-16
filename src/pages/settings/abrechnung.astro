@@ -46,10 +46,6 @@ const [objects, units, tenants] = await Promise.all([
         <div class="card__body stack">
           <h3>Objekte</h3>
           <p><strong>Anzahl:</strong> {objects.length}</p>
-          <p>
-            Diese Objekte stehen aktuell als Basis für abrechnungsbezogene
-            Prozesse zur Verfügung.
-          </p>
         </div>
       </article>
 
@@ -57,10 +53,6 @@ const [objects, units, tenants] = await Promise.all([
         <div class="card__body stack">
           <h3>Wohneinheiten</h3>
           <p><strong>Anzahl:</strong> {units.length}</p>
-          <p>
-            Diese Einheiten können später in Auswertungen und Abrechnungen
-            einbezogen werden.
-          </p>
         </div>
       </article>
 
@@ -68,22 +60,8 @@ const [objects, units, tenants] = await Promise.all([
         <div class="card__body stack">
           <h3>Mieter</h3>
           <p><strong>Anzahl:</strong> {tenants.length}</p>
-          <p>
-            Aktive Mieterdaten bilden die Grundlage für weitere finanzielle
-            Zuordnungen.
-          </p>
         </div>
       </article>
-    </section>
-
-    <section class="card card--glass">
-      <div class="card__body stack">
-        <h3>Nächste Schritte</h3>
-        <p>
-          Sobald die Basisdaten vollständig sind, kannst du weitere
-          Abrechnungslogik und Zuordnungen darauf aufbauen.
-        </p>
-      </div>
     </section>
   </div>
 </SettingsLayout>

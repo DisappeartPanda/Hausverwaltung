@@ -2,23 +2,20 @@
 import AppLayout from "../../../layouts/AppLayout.astro";
 import { getAppSession } from "../../../lib/auth/session";
 import { getAppContext } from "../../../lib/utils/app-context";
-import { getObjectListViewModel } from "../../../lib/domain/objects/object-list-service";
+import { getObjectListViewModel, type ObjectListItem } from "../../../lib/domain/objects/object-list-service";
 
-const session = await getAppSession(Astro);
+const sessionResult = await getAppSession(Astro);
 
-if (session instanceof Response) {
-  return session;
+if (sessionResult instanceof Response) {
+  return sessionResult;
 }
 
+const session = sessionResult;
 const appContext = await getAppContext(session);
 
 if (!appContext.organizationId) {
   throw new Error("Keine organizationId verfügbar.");
 }
-
-type ObjectListItem = Awaited<
-  ReturnType<typeof getObjectListViewModel>
->[number];
 
 let objects: ObjectListItem[] = [];
 
@@ -66,9 +63,9 @@ try {
           <div class="input-group">
             <label for="status" class="input-label">Status</label>
             <select id="status" name="status">
-              <option value="vacant">Leerstand</option>
-              <option value="occupied">Vermietet</option>
-              <option value="reserved">Reserviert</option>
+              <option value="frei">Leerstand</option>
+              <option value="vermietet">Vermietet</option>
+              <option value="reserviert">Reserviert</option>
             </select>
           </div>
 

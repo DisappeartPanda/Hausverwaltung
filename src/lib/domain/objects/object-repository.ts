@@ -7,26 +7,28 @@ type ObjectRow = Database["public"]["Tables"]["objects"]["Row"];
 export async function createObject(input: ObjectInsert): Promise<ObjectRow> {
   const supabase = createServerSupabaseClient();
 
-  const { data, error } = await supabase
-    .from("objects")
+  const objectsTable = supabase.from("objects") as any;
+
+  const { data, error } = await objectsTable
     .insert(input)
-    .select()
+    .select("*")
     .single();
 
   if (error || !data) {
     throw new Error(error?.message || "Objekt konnte nicht erstellt werden.");
   }
 
-  return data;
+  return data as ObjectRow;
 }
 
 export async function listObjectsByOrganization(
-  organizationId: string,
+  organizationId: string
 ): Promise<ObjectRow[]> {
   const supabase = createServerSupabaseClient();
 
-  const { data, error } = await supabase
-    .from("objects")
+  const objectsTable = supabase.from("objects") as any;
+
+  const { data, error } = await objectsTable
     .select("*")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false });
@@ -35,5 +37,26 @@ export async function listObjectsByOrganization(
     throw new Error(error.message || "Objekte konnten nicht geladen werden.");
   }
 
-  return data ?? [];
+  return (data ?? []) as ObjectRow[];
+}
+
+export async function getObjectById(
+  objectId: string,
+  organizationId: string
+): Promise<ObjectRow | null> {
+  const supabase = createServerSupabaseClient();
+
+  const objectsTable = supabase.from("objects") as any;
+
+  const { data, error } = await objectsTable
+    .select("*")
+    .eq("id", objectId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Objekt konnte nicht geladen werden.");
+  }
+
+  return (data as ObjectRow | null) ?? null;
 }
