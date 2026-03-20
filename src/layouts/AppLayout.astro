@@ -1,29 +1,105 @@
 ---
-import DashboardLayout from "./DashboardLayout.astro";
+import { ROUTES } from "../lib/constants/routes";
 
 interface Props {
-  title?: string;
-  description?: string;
-  organizationName?: string | null;
-  userEmail?: string | null;
-  activeModules?: string[];
-  theme?: string;
-  tenantName?: string;
+  title: string;
 }
 
-const {
-  title = "ImmobilienPro App",
-  description = "Verwaltung von Immobilien, Wohneinheiten, Mietern und Prozessen.",
-  organizationName = "ImmobilienPro",
-  userEmail = null,
-} = Astro.props;
+const { title } = Astro.props;
+const { user } = Astro.locals;
+
+if (!user) {
+  return Astro.redirect(ROUTES.AUTH_LOGIN);
+}
+
+const role = user.app_metadata?.role || user.user_metadata?.role || "guest";
 ---
 
-<DashboardLayout
-  title={title}
-  description={description}
-  organizationName={organizationName}
-  userEmail={userEmail}
->
-  <slot />
-</DashboardLayout>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <title>{title}</title>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <nav>
+        <a href={ROUTES.APP_DASHBOARD}>Dashboard</a>
+        {role !== "tenant" && (
+          <>
+            <a href={ROUTES.APP_OBJECTS}>Objekte</a>
+            <a href={ROUTES.APP_UNITS}>Wohneinheiten</a>
+            <a href={ROUTES.APP_TENANTS}>Mieter</a>
+            <a href={ROUTES.APP_DEFECTS}>Mängel</a>
+            <a href={ROUTES.APP_MAINTENANCE}>Wartungen</a>
+            <a href={ROUTES.APP_DOCUMENTS}>Dokumente</a>
+          </>
+        )}
+        {role === "tenant" && (
+          <a href={ROUTES.APP_TENANT_HOME}>Mein Portal</a>
+        )}
+      </nav>
+      
+      <form action={ROUTES.API_LOGOUT} method="POST" class="logout-form">
+        <button type="submit">Abmelden</button>
+      </form>
+    </aside>
+    
+    <main class="content">
+      <slot />
+    </main>
+  </div>
+</body>
+</html>
+
+<style>
+  .app-layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    min-height: 100vh;
+  }
+  
+  .sidebar {
+    background: var(--color-bg-secondary);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+  }
+  
+  .sidebar a {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--color-text-primary);
+  }
+  
+  .sidebar a:hover {
+    background: var(--color-bg-tertiary);
+  }
+  
+  .logout-form {
+    margin-top: auto;
+  }
+  
+  .logout-form button {
+    width: 100%;
+    padding: 0.75rem;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+  
+  .content {
+    padding: 2rem;
+  }
+</style>

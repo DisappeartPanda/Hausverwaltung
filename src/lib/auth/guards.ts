@@ -1,93 +1,110 @@
 import type { AstroGlobal } from "astro";
-import type { User } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from "../supabase/server";
 import { ROUTES } from "../constants/routes";
-import { ROLES } from "../constants/roles";
-import { getUserRole } from "./user-role";
-import { buildAppSession, type AppSession } from "./session";
 
-export function requireUser(user: User | null): string | null {
-  if (!user) {
-    return ROUTES.AUTH_LOGIN;
-  }
-
-  return null;
+export interface SessionResult {
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    organizationId?: string;
+  };
 }
 
-export function requireTenant(user: User | null): string | null {
-  if (!user) {
-    return ROUTES.AUTH_LOGIN;
-  }
-
-  const role = getUserRole(user);
-
-  if (role !== ROLES.TENANT) {
-    return ROUTES.APP_DASHBOARD;
-  }
-
-  return null;
-}
-
-export function requireLandlord(user: User | null): string | null {
-  if (!user) {
-    return ROUTES.AUTH_LOGIN;
-  }
-
-  const role = getUserRole(user);
-
-  if (role !== ROLES.LANDLORD) {
-    return ROUTES.APP_TENANT_HOME;
-  }
-
-  return null;
-}
-
-export async function requireAppSession(
+/**
+ * Prüft ob User eingeloggt ist (jede Rolle)
+ */
+export async function requireSession(
   Astro: AstroGlobal
-): Promise<Response | AppSession> {
-  const user = Astro.locals.user;
-  const session = Astro.locals.session ?? null;
+): Promise<SessionResult | Response> {
+  const supabase = createServerSupabaseClient(Astro.cookies);
+  
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!user) {
-    return Astro.redirect(ROUTES.AUTH_LOGIN);
+  if (error || !user) {
+    const returnUrl = encodeURIComponent(Astro.url.pathname);
+    return Astro.redirect(`${ROUTES.AUTH_LOGIN}?returnTo=${returnUrl}`);
   }
 
-  return buildAppSession(user, session);
+  // Rolle aus app_metadata (sicher) oder user_metadata (Fallback)
+  const role = user.app_metadata?.role || user.user_metadata?.role || "guest";
+
+  // Organisation des Users laden
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("organization_id, role")
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email!,
+      role: membership?.role || role,
+      organizationId: membership?.organization_id,
+    },
+  };
 }
 
-export async function requireLandlordSession(
-  Astro: AstroGlobal
-): Promise<Response | AppSession> {
-  const user = Astro.locals.user;
-  const session = Astro.locals.session ?? null;
-
-  if (!user) {
-    return Astro.redirect(ROUTES.AUTH_LOGIN);
-  }
-
-  const role = getUserRole(user);
-
-  if (role !== ROLES.LANDLORD) {
-    return Astro.redirect(ROUTES.APP_TENANT_HOME);
-  }
-
-  return buildAppSession(user, session);
-}
-
+/**
+ * Prüft ob User ein Tenant (Mieter) ist
+ */
 export async function requireTenantSession(
   Astro: AstroGlobal
-): Promise<Response | AppSession> {
-  const user = Astro.locals.user;
-  const session = Astro.locals.session ?? null;
-
-  if (!user) {
-    return Astro.redirect(ROUTES.AUTH_LOGIN);
+): Promise<SessionResult | Response> {
+  const result = await requireSession(Astro);
+  
+  if (result instanceof Response) {
+    return result;
   }
 
-  const role = getUserRole(user);
-
-  if (role !== ROLES.TENANT) {
+  // Prüfe ob Tenant oder zumindest Member mit Tenant-Rolle
+  const allowedRoles = ["tenant", "owner", "admin"]; // Owner/Admin können auch Tenant-Bereich sehen?
+  
+  if (!allowedRoles.includes(result.user.role)) {
     return Astro.redirect(ROUTES.APP_DASHBOARD);
   }
 
-  return buildAppSession(user, session);
+  return result;
+}
+
+/**
+ * Prüft ob User Landlord/Verwalter ist
+ */
+export async function requireLandlordSession(
+  Astro: AstroGlobal
+): Promise<SessionResult | Response> {
+  const result = await requireSession(Astro);
+  
+  if (result instanceof Response) {
+    return result;
+  }
+
+  const allowedRoles = ["owner", "admin", "member", "viewer"];
+  
+  if (!allowedRoles.includes(result.user.role)) {
+    return Astro.redirect(ROUTES.APP_TENANT_HOME);
+  }
+
+  return result;
+}
+
+/**
+ * Prüft ob User Admin/Owner ist
+ */
+export async function requireAdminSession(
+  Astro: AstroGlobal
+): Promise<SessionResult | Response> {
+  const result = await requireSession(Astro);
+  
+  if (result instanceof Response) {
+    return result;
+  }
+
+  if (!["owner", "admin"].includes(result.user.role)) {
+    return Astro.redirect(ROUTES.APP_DASHBOARD);
+  }
+
+  return result;
 }

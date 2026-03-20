@@ -1,8 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
-import { ROUTES } from "./lib/constants/routes";
 import { createServerSupabaseClient } from "./lib/supabase/server";
-import { getPostLoginRoute } from "./lib/auth/redirects";
-import { getUserRole } from "./lib/auth/user-role";
+import { ROUTES } from "./lib/constants/routes";
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const supabase = createServerSupabaseClient(context.cookies);
@@ -33,8 +31,31 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   if (isAuthRoute && user) {
-    const role = getUserRole(user);
-    return context.redirect(getPostLoginRoute(role));
+    const { data: membership } = await supabase
+      .from("organization_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (membership?.role === "tenant") {
+      return context.redirect(ROUTES.APP_TENANT_HOME);
+    }
+
+    if (membership?.role === "owner" || membership?.role === "landlord") {
+      return context.redirect(ROUTES.HOME);
+    }
+
+    const appRole = user.user_metadata?.role;
+
+    if (appRole === "tenant") {
+      return context.redirect(ROUTES.APP_TENANT_HOME);
+    }
+
+    if (appRole === "landlord") {
+      return context.redirect(ROUTES.HOME);
+    }
+
+    return context.redirect(ROUTES.APP_DASHBOARD);
   }
 
   return next();

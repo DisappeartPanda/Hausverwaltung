@@ -1,56 +1,46 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { createServerClient, parseCookieHeader } from "@supabase/ssr";
 import type { AstroCookies } from "astro";
 import type { Database } from "../../types/database";
 
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
-
-function createCookieAdapter(cookies: AstroCookies) {
-  return {
-    get(key: string) {
-      return cookies.get(key)?.value;
-    },
-    set(key: string, value: string, options: CookieOptions) {
-      cookies.set(key, value, options);
-    },
-    remove(key: string, options: CookieOptions) {
-      cookies.delete(key, options);
-    },
-  };
-}
-
-export function createServerSupabaseClient(cookies?: AstroCookies) {
-  if (!cookies) {
-    return createClient<Database>(
-      supabaseUrl,
-      supabaseServiceRoleKey || supabaseAnonKey,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      }
-    );
-  }
-
-  return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
-    cookies: createCookieAdapter(cookies),
-  });
-}
-
-export function createServiceRoleSupabaseClient() {
-  return createClient<Database>(
-    supabaseUrl,
-    supabaseServiceRoleKey || supabaseAnonKey,
+export function createServerSupabaseClient(cookies: AstroCookies) {
+  return createServerClient<Database>(
+    import.meta.env.PUBLIC_SUPABASE_URL,
+    import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
     {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+      cookies: {
+        getAll() {
+          return parseCookieHeader(cookies.toString());
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookies.set(name, value, options);
+          });
+        },
       },
     }
   );
 }
 
-export const createSupabaseServerClient = createServerSupabaseClient;
+// Hilfsfunktion: Aktuellen User mit Session holen
+export async function getCurrentUser(cookies: AstroCookies) {
+  const supabase = createServerSupabaseClient(cookies);
+  const { data: { user }, error } = await supabase.auth.getUser();
+  
+  if (error || !user) {
+    return { user: null, error: error || new Error("Nicht eingeloggt") };
+  }
+  
+  return { user, error: null };
+}
+
+// Hilfsfunktion: Session holen
+export async function getSession(cookies: AstroCookies) {
+  const supabase = createServerSupabaseClient(cookies);
+  const { data: { session }, error } = await supabase.auth.getSession();
+  
+  if (error || !session) {
+    return { session: null, error: error || new Error("Keine Session") };
+  }
+  
+  return { session, error: null };
+}

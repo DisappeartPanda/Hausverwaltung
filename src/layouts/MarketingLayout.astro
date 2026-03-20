@@ -1,69 +1,27 @@
 ---
-import "../styles/tokens.css";
-import "../styles/base.css";
-import "../styles/components.css";
-import "../styles/themes.css";
-import "../styles/typography.css";
-
-import { ROUTES } from "../lib/constants/routes";
+import BaseLayout from "./BaseLayout.astro";
+import Navigation from "../components/marketing/Navigation.astro";
+import Footer from "../components/marketing/Footer.astro";
 
 interface Props {
   title?: string;
   description?: string;
+  theme?: "dark-green" | "dark-blue" | "light";
 }
 
 const {
   title = "ImmobilienPro",
-  description = "Moderne Hausverwaltung für Vermieter, Verwalter und Mieter.",
+  description = "Modulare Plattform für Hausverwaltung, Sondereigentum und Mietpool.",
+  theme = "dark-green",
 } = Astro.props;
 ---
 
-<!doctype html>
-<html lang="de">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title}</title>
-    <meta name="description" content={description} />
-  </head>
-  <body>
-    <header class="page-shell">
-      <div class="container row row--between">
-        <a href={ROUTES.HOME} class="row" style="gap: var(--space-3);">
-          <span class="badge badge--accent">IP</span>
-          <strong>ImmobilienPro</strong>
-        </a>
-
-        <nav class="row" aria-label="Hauptnavigation">
-          <a href={ROUTES.HOME}>Start</a>
-          <a href="/pricing">Preise</a>
-          <a href="/kontakt">Kontakt</a>
-          <a href={ROUTES.AUTH_LOGIN} class="button button--ghost">Login</a>
-          <a href={ROUTES.AUTH_REGISTER} class="button button--primary">
-            Registrieren
-          </a>
-        </nav>
-      </div>
-    </header>
-
+<BaseLayout title={title} description={description}>
+  <div class={`marketing-layout theme-${theme}`}>
+    <Navigation />
     <main>
       <slot />
     </main>
-
-    <footer class="section">
-      <div class="container row row--between">
-        <div class="stack">
-          <strong>ImmobilienPro</strong>
-          <p>Digitale Hausverwaltung für Vermieter, Verwalter und Mieter.</p>
-        </div>
-
-        <div class="row">
-          <a href={ROUTES.HOME}>Start</a>
-          <a href="/pricing">Preise</a>
-          <a href="/kontakt">Kontakt</a>
-          <a href={ROUTES.AUTH_LOGIN}>Login</a>
-        </div>
-      </div>
-    </footer>
-  </body>
-</html>
+    <Footer />
+  </div>
+</BaseLayout>

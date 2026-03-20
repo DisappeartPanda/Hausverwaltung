@@ -1,20 +1,25 @@
 import { createBrowserClient } from "@supabase/ssr";
-import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from "../../env/client";
 import type { Database } from "../../types/database";
 
-let browserClient: ReturnType<typeof createSupabaseBrowserClient> | null = null;
+// Singleton Pattern für Browser-Client
+let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
 
-export function createSupabaseBrowserClient() {
-  return createBrowserClient<Database>(
-    PUBLIC_SUPABASE_URL,
-    PUBLIC_SUPABASE_ANON_KEY,
-  );
-}
-
-export function getBrowserSupabaseClient() {
+export function getSupabaseBrowserClient() {
   if (!browserClient) {
-    browserClient = createSupabaseBrowserClient();
+    browserClient = createBrowserClient<Database>(
+      import.meta.env.PUBLIC_SUPABASE_URL,
+      import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+        },
+      }
+    );
   }
-
   return browserClient;
 }
+
+// Für direkte Verwendung
+export const supabaseBrowser = getSupabaseBrowserClient();

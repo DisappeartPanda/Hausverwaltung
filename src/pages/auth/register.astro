@@ -1,223 +1,467 @@
 ---
-import AuthLayout from "../../layouts/AuthLayout.astro";
-import { createServerSupabaseClient } from "../../lib/supabase/server";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 import { ROUTES } from "../../lib/constants/routes";
-import { ROLES } from "../../lib/constants/roles";
 
-let error = "";
-let success = "";
-
-let firstName = "";
-let lastName = "";
-let email = "";
-let role: typeof ROLES.LANDLORD | typeof ROLES.TENANT = ROLES.LANDLORD;
-let organizationName = "";
-let organizationId = "";
-
-if (Astro.request.method === "POST") {
-  const formData = await Astro.request.formData();
-
-  firstName = String(formData.get("firstName") ?? "").trim();
-  lastName = String(formData.get("lastName") ?? "").trim();
-  email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  const confirmPassword = String(formData.get("confirmPassword") ?? "");
-  role = String(formData.get("role") ?? ROLES.LANDLORD) as
-    | typeof ROLES.LANDLORD
-    | typeof ROLES.TENANT;
-  organizationName = String(formData.get("organizationName") ?? "").trim();
-  organizationId = String(formData.get("organizationId") ?? "").trim();
-
-  if (!firstName || !lastName || !email || !password || !confirmPassword) {
-    error = "Bitte fülle alle Pflichtfelder aus.";
-    success = "";
-  } else if (password !== confirmPassword) {
-    error = "Die Passwörter stimmen nicht überein.";
-    success = "";
-  } else if (password.length < 8) {
-    error = "Das Passwort muss mindestens 8 Zeichen lang sein.";
-    success = "";
-  } else if (role === ROLES.LANDLORD && !organizationName) {
-    error = "Bitte gib einen Organisationsnamen an.";
-    success = "";
-  } else {
-    const supabase = createServerSupabaseClient(Astro.cookies);
-
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: new URL(ROUTES.AUTH_LOGIN, Astro.url).toString(),
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          role,
-          organization_name: organizationName || null,
-          organization_id: organizationId || null,
-        },
-      },
-    });
-
-    if (signUpError) {
-      error = "Registrierung fehlgeschlagen. Bitte versuche es erneut.";
-      success = "";
-    } else {
-      error = "";
-      success =
-        "Registrierung erfolgreich. Bitte prüfe deine E-Mails für die Bestätigung.";
-    }
-  }
+// Wenn bereits eingeloggt, weiterleiten
+const { user } = Astro.locals;
+if (user) {
+  return Astro.redirect(ROUTES.APP_DASHBOARD);
 }
 ---
 
-<AuthLayout title="Registrierung | ImmobilienPro">
-  <section class="section">
-    <div class="container--md">
-      <div class="card card--glass">
-        <div class="card__body stack">
-          <header class="section__header">
-            <p class="section__eyebrow">Registrierung</p>
-            <h1>Neues Konto erstellen</h1>
-            <p>
-              Registriere dich als Verwalter oder Mieter und starte mit
-              ImmobilienPro.
-            </p>
-          </header>
+<BaseLayout title="Registrieren | ImmobilienPro">
+  <section class="auth-page">
+    <div class="auth-card">
+      <p class="auth-eyebrow">Konto erstellen</p>
+      <h1>Bei ImmobilienPro registrieren</h1>
+      <p class="auth-copy">
+        Erstelle dein Konto als Vermieter oder Mieter.
+      </p>
 
-          {
-            error && (
-              <div class="panel">
-                <div class="panel__body">
-                  <p>{error}</p>
-                </div>
-              </div>
-            )
-          }
-
-          {
-            success && (
-              <div class="panel">
-                <div class="panel__body">
-                  <p>{success}</p>
-                </div>
-              </div>
-            )
-          }
-
-          <form method="POST" class="stack">
-            <div class="grid-auto">
-              <div class="input-group">
-                <label for="firstName" class="input-label">Vorname</label>
-                <input
-                  id="firstName"
-                  name="firstName"
-                  type="text"
-                  autocomplete="given-name"
-                  required
-                  value={firstName}
-                />
-              </div>
-
-              <div class="input-group">
-                <label for="lastName" class="input-label">Nachname</label>
-                <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  autocomplete="family-name"
-                  required
-                  value={lastName}
-                />
-              </div>
-            </div>
-
-            <div class="input-group">
-              <label for="email" class="input-label">E-Mail</label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autocomplete="email"
-                required
-                value={email}
-              />
-            </div>
-
-            <div class="grid-auto">
-              <div class="input-group">
-                <label for="password" class="input-label">Passwort</label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autocomplete="new-password"
-                  required
-                />
-              </div>
-
-              <div class="input-group">
-                <label for="confirmPassword" class="input-label">
-                  Passwort bestätigen
-                </label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  autocomplete="new-password"
-                  required
-                />
-              </div>
-            </div>
-
-            <div class="input-group">
-              <label for="role" class="input-label">Rolle</label>
-              <select id="role" name="role">
-                <option value={ROLES.LANDLORD} selected={role === ROLES.LANDLORD}>
-                  Verwalter / Vermieter
-                </option>
-                <option value={ROLES.TENANT} selected={role === ROLES.TENANT}>
-                  Mieter
-                </option>
-              </select>
-            </div>
-
-            <div class="grid-auto">
-              <div class="input-group">
-                <label for="organizationName" class="input-label">
-                  Organisationsname
-                </label>
-                <input
-                  id="organizationName"
-                  name="organizationName"
-                  type="text"
-                  value={organizationName}
-                />
-              </div>
-
-              <div class="input-group">
-                <label for="organizationId" class="input-label">
-                  Organisations-ID
-                </label>
-                <input
-                  id="organizationId"
-                  name="organizationId"
-                  type="text"
-                  value={organizationId}
-                />
-              </div>
-            </div>
-
-            <div class="row">
-              <button type="submit" class="button button--primary">
-                Konto erstellen
-              </button>
-              <a href={ROUTES.AUTH_LOGIN} class="button button--secondary">
-                Zum Login
-              </a>
-            </div>
-          </form>
+      <form id="register-form" class="auth-form">
+        <div class="role-selector">
+          <label class="role-option">
+            <input type="radio" name="role" value="landlord" checked />
+            <span class="role-card">
+              <strong>Vermieter / Verwalter</strong>
+              <small>Verwalte deine Immobilien und Mieter</small>
+            </span>
+          </label>
+          <label class="role-option">
+            <input type="radio" name="role" value="tenant" />
+            <span class="role-card">
+              <strong>Mieter</strong>
+              <small>Zugriff auf Mieterportal</small>
+            </span>
+          </label>
         </div>
+
+        <label>
+          <span>Vollständiger Name</span>
+          <input
+            id="fullName"
+            name="fullName"
+            type="text"
+            required
+            placeholder="Max Mustermann"
+            minlength="2"
+            maxlength="100"
+          />
+        </label>
+
+        <label>
+          <span>E-Mail</span>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autocomplete="email"
+            required
+            placeholder="name@beispiel.de"
+            maxlength="254"
+          />
+        </label>
+
+        <label>
+          <span>Passwort</span>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            required
+            placeholder="••••••••"
+            minlength="8"
+            maxlength="128"
+          />
+          <small class="hint">Mindestens 8 Zeichen, Groß- und Kleinbuchstaben, Zahl und Sonderzeichen</small>
+        </label>
+
+        <label>
+          <span>Passwort bestätigen</span>
+          <input
+            id="passwordConfirm"
+            name="passwordConfirm"
+            type="password"
+            autocomplete="new-password"
+            required
+            placeholder="••••••••"
+          />
+        </label>
+
+        <label class="checkbox-label">
+          <input type="checkbox" name="terms" required />
+          <span>Ich akzeptiere die <a href="/terms" target="_blank">Nutzungsbedingungen</a> und <a href="/privacy" target="_blank">Datenschutzerklärung</a></span>
+        </label>
+
+        <p id="register-error" class="auth-error" hidden></p>
+
+        <button type="submit" id="register-submit" class="btn-primary">
+          <span class="btn-text">Konto erstellen</span>
+          <span class="btn-loading" hidden>Registriere...</span>
+        </button>
+      </form>
+
+      <div class="auth-links">
+        <span>Bereits ein Konto? <a href={ROUTES.AUTH_LOGIN}>Anmelden</a></span>
       </div>
     </div>
   </section>
-</AuthLayout>
+</BaseLayout>
+
+<script>
+  import { getSupabaseBrowserClient } from "../../lib/supabase/client";
+
+  const form = document.getElementById("register-form") as HTMLFormElement;
+  const errorBox = document.getElementById("register-error") as HTMLElement;
+  const submitButton = document.getElementById("register-submit") as HTMLButtonElement;
+  const btnText = submitButton.querySelector(".btn-text") as HTMLElement;
+  const btnLoading = submitButton.querySelector(".btn-loading") as HTMLElement;
+
+  function showError(message: string) {
+    if (!errorBox) return;
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+  }
+
+  function clearError() {
+    if (!errorBox) return;
+    errorBox.textContent = "";
+    errorBox.hidden = true;
+  }
+
+  function setLoading(loading: boolean) {
+    if (!submitButton) return;
+    submitButton.disabled = loading;
+    btnText.hidden = loading;
+    btnLoading.hidden = !loading;
+  }
+
+  function validatePassword(password: string): { valid: boolean; error?: string } {
+    if (password.length < 8) {
+      return { valid: false, error: "Passwort muss mindestens 8 Zeichen haben." };
+    }
+    if (password.length > 128) {
+      return { valid: false, error: "Passwort ist zu lang." };
+    }
+    if (!/[A-Z]/.test(password)) {
+      return { valid: false, error: "Passwort muss mindestens einen Großbuchstaben enthalten." };
+    }
+    if (!/[a-z]/.test(password)) {
+      return { valid: false, error: "Passwort muss mindestens einen Kleinbuchstaben enthalten." };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, error: "Passwort muss mindestens eine Zahl enthalten." };
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      return { valid: false, error: "Passwort muss mindestens ein Sonderzeichen enthalten." };
+    }
+    return { valid: true };
+  }
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearError();
+
+    const formData = new FormData(form);
+    const role = String(formData.get("role") || "landlord");
+    const fullName = String(formData.get("fullName") || "").trim();
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+    const password = String(formData.get("password") || "");
+    const passwordConfirm = String(formData.get("passwordConfirm") || "");
+    const terms = formData.get("terms") === "on";
+
+    // Validierung
+    if (!fullName || fullName.length < 2) {
+      showError("Bitte gib deinen vollständigen Namen an.");
+      return;
+    }
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError("Bitte eine gültige E-Mail-Adresse eingeben.");
+      return;
+    }
+
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) {
+      showError(passwordCheck.error!);
+      return;
+    }
+
+    if (password !== passwordConfirm) {
+      showError("Passwörter stimmen nicht überein.");
+      return;
+    }
+
+    if (!terms) {
+      showError("Bitte akzeptiere die Nutzungsbedingungen.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: role,
+            organization_name: role === "landlord" ? `${fullName}s Organisation` : undefined,
+          },
+        },
+      });
+
+      if (error) {
+        console.error("Registration error:", error);
+        if (error.message.includes("already registered")) {
+          showError("Diese E-Mail-Adresse ist bereits registriert.");
+        } else {
+          showError("Registrierung fehlgeschlagen: " + error.message);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        // Erfolgreich registriert
+        if (data.session) {
+          // Auto-Login (wenn E-Mail-Bestätigung deaktiviert)
+          const redirectTo = role === "tenant" ? "/app/tenant" : "/app/dashboard";
+          window.location.href = redirectTo;
+        } else {
+          // E-Mail-Bestätigung erforderlich
+          window.location.href = "/auth/verify-email?email=" + encodeURIComponent(email);
+        }
+      }
+
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      showError("Ein technischer Fehler ist aufgetreten. Bitte versuche es später erneut.");
+      setLoading(false);
+    }
+  });
+</script>
+
+<style>
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: var(--color-bg-secondary);
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .auth-eyebrow {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .auth-card h1 {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 0.75rem;
+  }
+
+  .auth-copy {
+    color: var(--color-text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+
+  .role-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .role-option {
+    cursor: pointer;
+  }
+
+  .role-option input {
+    position: absolute;
+    opacity: 0;
+  }
+
+  .role-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    transition: all 0.2s;
+  }
+
+  .role-option input:checked + .role-card {
+    border-color: var(--color-accent);
+    background: var(--color-accent-alpha);
+  }
+
+  .role-card strong {
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+    margin-bottom: 0.25rem;
+  }
+
+  .role-card small {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .auth-form label:not(.role-option):not(.checkbox-label) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .auth-form label span {
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .auth-form input[type="text"],
+  .auth-form input[type="email"],
+  .auth-form input[type="password"] {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--text-base);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .auth-form input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-alpha);
+  }
+
+  .hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 0.25rem;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+
+  .checkbox-label input {
+    margin-top: 0.25rem;
+  }
+
+  .checkbox-label a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .checkbox-label a:hover {
+    text-decoration: underline;
+  }
+
+  .auth-error {
+    padding: 0.75rem 1rem;
+    background: var(--color-error-bg);
+    color: var(--color-error);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm);
+    margin: 0;
+  }
+
+  .btn-primary {
+    padding: 0.875rem 1.5rem;
+    background: var(--color-accent);
+    color: white;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    position: relative;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-accent-hover);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .btn-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-loading::after {
+    content: "";
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .auth-links {
+    text-align: center;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .auth-links a {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .auth-links a:hover {
+    text-decoration: underline;
+  }
+</style>

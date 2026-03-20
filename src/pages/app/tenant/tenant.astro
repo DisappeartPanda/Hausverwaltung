@@ -8,14 +8,19 @@ if (session instanceof Response) {
   return session;
 }
 
-const userEmail = Astro.locals.user?.email ?? null;
+// Jetzt hast du Zugriff auf:
+// session.user.id
+// session.user.email  
+// session.user.role
+// session.user.organizationId
 ---
 
 <AppLayout
   title="Mieterbereich | ImmobilienPro"
   organizationName="Mieterbereich"
-  userEmail={userEmail}
+  userEmail={session.user.email}
 >
+
   <div class="stack">
     <header class="section__header">
       <p class="section__eyebrow">Mieterbereich</p>
@@ -72,4 +77,5 @@ const userEmail = Astro.locals.user?.email ?? null;
       </article>
     </section>
   </div>
+
 </AppLayout>
