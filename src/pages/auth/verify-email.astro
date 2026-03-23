@@ -1,0 +1,98 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { ROUTES } from "../../lib/constants/routes";
+
+const email = Astro.url.searchParams.get("email");
+const safeEmail = email ?? "deine E-Mail-Adresse";
+---
+
+<BaseLayout title="E-Mail bestätigen | ImmobilienPro">
+  <section class="auth-page">
+    <div class="auth-card">
+      <p class="auth-eyebrow">Fast geschafft</p>
+      <h1>Bitte bestätige deine E-Mail-Adresse</h1>
+      <p class="auth-copy">
+        Wir haben eine Bestätigungs-E-Mail an <strong>{safeEmail}</strong> gesendet.
+      </p>
+      <p class="auth-copy">
+        Öffne den Link in der E-Mail, um dein Konto zu aktivieren. Danach kannst du dich anmelden.
+      </p>
+
+      <div class="auth-actions">
+        <a href={ROUTES.AUTH_LOGIN} class="btn-primary">Zum Login</a>
+        <a href={ROUTES.AUTH_REGISTER} class="btn-secondary">Andere E-Mail verwenden</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: var(--color-bg-secondary);
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-lg);
+    padding: 2.5rem;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .auth-eyebrow {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .auth-card h1 {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 0.75rem;
+  }
+
+  .auth-copy {
+    color: var(--color-text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+  }
+
+  .auth-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.875rem 1.25rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: white;
+  }
+
+  .btn-secondary {
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    background: transparent;
+  }
+</style>

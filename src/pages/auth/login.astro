@@ -2,7 +2,6 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { ROUTES } from "../../lib/constants/routes";
 
-// Wenn bereits eingeloggt, weiterleiten
 const { user } = Astro.locals;
 if (user) {
   const role = user.app_metadata?.role || user.user_metadata?.role;
@@ -10,7 +9,6 @@ if (user) {
   return Astro.redirect(redirectTo);
 }
 
-// Return URL aus Query-Param
 const returnTo = Astro.url.searchParams.get("returnTo") || "";
 ---
 
@@ -68,15 +66,13 @@ const returnTo = Astro.url.searchParams.get("returnTo") || "";
 </BaseLayout>
 
 <script>
-  import { getSupabaseBrowserClient } from "../../lib/supabase/client";
+  const form = document.getElementById("login-form");
+  const errorBox = document.getElementById("login-error");
+  const submitButton = document.getElementById("login-submit");
+  const btnText = submitButton?.querySelector(".btn-text");
+  const btnLoading = submitButton?.querySelector(".btn-loading");
 
-  const form = document.getElementById("login-form") as HTMLFormElement;
-  const errorBox = document.getElementById("login-error") as HTMLElement;
-  const submitButton = document.getElementById("login-submit") as HTMLButtonElement;
-  const btnText = submitButton.querySelector(".btn-text") as HTMLElement;
-  const btnLoading = submitButton.querySelector(".btn-loading") as HTMLElement;
-
-  function showError(message: string) {
+  function showError(message) {
     if (!errorBox) return;
     errorBox.textContent = message;
     errorBox.hidden = false;
@@ -88,19 +84,19 @@ const returnTo = Astro.url.searchParams.get("returnTo") || "";
     errorBox.hidden = true;
   }
 
-  function setLoading(loading: boolean) {
-    if (!submitButton) return;
+  function setLoading(loading) {
+    if (!submitButton || !btnText || !btnLoading) return;
     submitButton.disabled = loading;
     btnText.hidden = loading;
     btnLoading.hidden = !loading;
   }
 
-  function validateEmail(email: string): boolean {
+  function validateEmail(email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) && email.length <= 254;
   }
 
-  function validatePassword(password: string): { valid: boolean; error?: string } {
+  function validatePassword(password) {
     if (password.length < 8) {
       return { valid: false, error: "Passwort muss mindestens 8 Zeichen haben." };
     }
@@ -119,7 +115,6 @@ const returnTo = Astro.url.searchParams.get("returnTo") || "";
     const password = String(formData.get("password") ?? "");
     const returnTo = form.dataset.returnTo || "";
 
-    // Client-seitige Validierung
     if (!email || !password) {
       showError("Bitte E-Mail und Passwort eingeben.");
       return;
@@ -132,56 +127,36 @@ const returnTo = Astro.url.searchParams.get("returnTo") || "";
 
     const passwordCheck = validatePassword(password);
     if (!passwordCheck.valid) {
-      showError(passwordCheck.error!);
+      showError(passwordCheck.error);
       return;
     }
 
     setLoading(true);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
       });
 
-      if (error) {
-        // Sichere Fehlermeldung (nicht zu detailliert)
-        console.error("Login error:", error);
-        showError("Anmeldedaten sind ungültig. Bitte versuche es erneut.");
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        showError(result.error || "Anmeldedaten sind ungültig. Bitte versuche es erneut.");
         setLoading(false);
         return;
       }
 
-      if (!data.user) {
-        showError("Ein unerwarteter Fehler ist aufgetreten.");
-        setLoading(false);
-        return;
-      }
+      let redirectPath = result?.data?.redirectTo || "/app/dashboard";
 
-      // Prüfe ob E-Mail bestätigt (wenn erforderlich)
-      // if (!data.user.email_confirmed_at) {
-      //   showError("Bitte bestätige zuerst deine E-Mail-Adresse.");
-      //   setLoading(false);
-      //   return;
-      // }
-
-      // Rolle bestimmen und weiterleiten
-      const role = data.user.app_metadata?.role || data.user.user_metadata?.role || "guest";
-      
-      let redirectPath = "/app/dashboard";
-      if (role === "tenant") {
-        redirectPath = "/app/tenant";
-      }
-      
-      // Return-To hat Priorität
       if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
         redirectPath = decodeURIComponent(returnTo);
       }
 
       window.location.href = redirectPath;
-
     } catch (err) {
       console.error("Unexpected error:", err);
       showError("Ein technischer Fehler ist aufgetreten. Bitte versuche es später erneut.");

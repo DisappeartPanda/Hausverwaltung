@@ -2,8 +2,46 @@ import { defineMiddleware } from "astro:middleware";
 import { createServerSupabaseClient } from "./lib/supabase/server";
 import { ROUTES } from "./lib/constants/routes";
 
+const PUBLIC_ROUTES = [
+  ROUTES.HOME,
+  ROUTES.AUTH_LOGIN,
+  ROUTES.AUTH_REGISTER,
+  ROUTES.AUTH_FORGOT_PASSWORD,
+  ROUTES.AUTH_RESET_PASSWORD,
+  "/auth/verify-email",
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
+  "/api/auth/refresh",
+];
+
+const STATIC_ASSET_PREFIXES = [
+  "/_astro/",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+];
+
+function isPublicRoute(pathname: string) {
+  return PUBLIC_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+}
+
+function isStaticAsset(pathname: string) {
+  return STATIC_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
-  const supabase = createServerSupabaseClient(context.cookies);
+  const { url, cookies } = context;
+  const pathname = url.pathname;
+
+  if (isStaticAsset(pathname)) {
+    return next();
+  }
+
+  const supabase = createServerSupabaseClient(cookies);
 
   const {
     data: { session },
@@ -17,45 +55,62 @@ export const onRequest = defineMiddleware(async (context, next) => {
   context.locals.session = session;
   context.locals.user = user;
 
-  const pathname = context.url.pathname;
+  if (isPublicRoute(pathname)) {
+    if (
+      user &&
+      (
+        pathname === ROUTES.AUTH_LOGIN ||
+        pathname === ROUTES.AUTH_REGISTER ||
+        pathname === ROUTES.AUTH_FORGOT_PASSWORD ||
+        pathname === ROUTES.AUTH_RESET_PASSWORD
+      )
+    ) {
+      const role = user.app_metadata?.role || user.user_metadata?.role;
 
-  const isAppRoute = pathname.startsWith(ROUTES.APP_ROOT);
-  const isAuthRoute =
-    pathname === ROUTES.AUTH_LOGIN ||
-    pathname === ROUTES.AUTH_REGISTER ||
-    pathname === ROUTES.AUTH_FORGOT_PASSWORD ||
-    pathname === ROUTES.AUTH_RESET_PASSWORD;
+      if (role === "tenant") {
+        return context.redirect(ROUTES.APP_TENANT_HOME);
+      }
 
-  if (isAppRoute && !user) {
-    return context.redirect(ROUTES.AUTH_LOGIN);
+      return context.redirect(ROUTES.APP_DASHBOARD);
+    }
+
+    return next();
   }
 
-  if (isAuthRoute && user) {
-    const { data: membership } = await supabase
-      .from("organization_members")
-      .select("role")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (membership?.role === "tenant") {
-      return context.redirect(ROUTES.APP_TENANT_HOME);
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth/")) {
+    if (!user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Nicht autorisiert" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    if (membership?.role === "owner" || membership?.role === "landlord") {
-      return context.redirect(ROUTES.HOME);
-    }
+    return next();
+  }
 
-    const appRole = user.user_metadata?.role;
+  const isAppRoute = pathname.startsWith(ROUTES.APP_ROOT);
 
-    if (appRole === "tenant") {
-      return context.redirect(ROUTES.APP_TENANT_HOME);
-    }
+  if (isAppRoute && !user) {
+    const returnTo = encodeURIComponent(pathname);
+    return context.redirect(`${ROUTES.AUTH_LOGIN}?returnTo=${returnTo}`);
+  }
 
-    if (appRole === "landlord") {
-      return context.redirect(ROUTES.HOME);
-    }
+  if (!user) {
+    const returnTo = encodeURIComponent(pathname);
+    return context.redirect(`${ROUTES.AUTH_LOGIN}?returnTo=${returnTo}`);
+  }
 
+  const role = user.app_metadata?.role || user.user_metadata?.role || "guest";
+
+  if (pathname.startsWith("/app/tenant") && role !== "tenant") {
     return context.redirect(ROUTES.APP_DASHBOARD);
+  }
+
+  if (pathname.startsWith("/app/") && !pathname.startsWith("/app/tenant") && role === "tenant") {
+    return context.redirect(ROUTES.APP_TENANT_HOME);
   }
 
   return next();
